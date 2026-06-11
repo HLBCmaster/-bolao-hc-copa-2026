@@ -21,7 +21,7 @@
     // ====================== CONFIG DO FIREBASE ======================
     const firebaseConfig = {
       apiKey: "AIzaSyBQUBb2rQ5OFrr86GUpGqlb3Dmp8NLYww0",
-      authDomain: "bolao-hc-copa-2026.firebaseapp.com",
+      authDomain: "bolao-hc-copa-2026.vercel.app",
       projectId: "bolao-hc-copa-2026",
       storageBucket: "bolao-hc-copa-2026.firebasestorage.app",
       messagingSenderId: "1021056019416",
@@ -191,32 +191,6 @@
       // ---- AUTH ----
       useEffect(() => {
         const init = async () => {
-          try {
-            // Primeiro processa o resultado do redirect (se vier do Google)
-            const result = await auth.getRedirectResult();
-            if (result && result.user) {
-              // Veio de um redirect — processa o perfil imediatamente
-              const u = result.user;
-              setUser(u);
-              const ref = db.collection("users").doc(u.uid);
-              const snap = await ref.get();
-              if (!snap.exists) {
-                setNeedName(true);
-              } else {
-                setProfile(snap.data());
-                setNeedName(false);
-              }
-              setAuthLoading(false);
-              setLoginInProgress(false);
-              return;
-            }
-          } catch (e) {
-            if (e.code !== 'auth/no-auth-event') {
-              setMsg("Erro no login: " + e.message);
-            }
-          }
-
-          // Fluxo normal: escuta mudanças de auth
           const unsub = auth.onAuthStateChanged(async (u) => {
             if (u) {
               setUser(u);
@@ -265,7 +239,7 @@
       const login = async () => {
         try {
           setLoginInProgress(true);
-          await auth.signInWithRedirect(provider);
+          await auth.signInWithPopup(provider);
         } catch (e) {
           setLoginInProgress(false);
           setMsg("Erro no login: " + e.message);
