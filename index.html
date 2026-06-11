@@ -190,13 +190,6 @@
 
       // ---- AUTH ----
       useEffect(() => {
-        // Captura o retorno do redirect do Google
-        auth.getRedirectResult().catch(e => {
-          if (e.code !== 'auth/no-auth-event') {
-            setMsg("Erro no login: " + e.message);
-          }
-        });
-
         const unsub = auth.onAuthStateChanged(async (u) => {
           if (u) {
             setUser(u);
@@ -242,7 +235,8 @@
       const login = async () => {
         try {
           setLoginInProgress(true);
-          await auth.signInWithRedirect(provider);
+          await auth.signInWithPopup(provider);
+          // onAuthStateChanged vai cuidar do resto
         } catch (e) {
           setLoginInProgress(false);
           setMsg("Erro no login: " + e.message);
