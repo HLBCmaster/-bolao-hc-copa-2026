@@ -11,818 +11,873 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     * { font-family: 'Inter', sans-serif; }
-    .flag-img { width: 28px; height: 20px; object-fit: cover; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
-    .flag-sm { width: 22px; height: 15px; object-fit: cover; border-radius: 2px; }
-    input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .flag-img { width: 26px; height: 18px; object-fit: cover; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.15); display:inline-block; }
+    .flag-sm  { width: 20px; height: 14px; object-fit: cover; border-radius: 2px; display:inline-block; }
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     input[type=number] { -moz-appearance: textfield; }
     .tab-active { border-bottom: 3px solid #10b981; color: #10b981; }
-    .glass { background: rgba(255,255,255,0.12); backdrop-filter: blur(10px); }
   </style>
 </head>
 <body class="bg-gray-50">
-  <div id="root"></div>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+  const { useState, useEffect } = React;
 
-  <script type="text/babel" data-presets="react">
-    const { useState, useEffect } = React;
+  const firebaseConfig = {
+    apiKey: "AIzaSyBQUBb2rQ5OFrr86GUpGqlb3Dmp8NLYww0",
+    authDomain: "bolao-hc-copa-2026.firebaseapp.com",
+    projectId: "bolao-hc-copa-2026",
+    storageBucket: "bolao-hc-copa-2026.firebasestorage.app",
+    messagingSenderId: "1021056019416",
+    appId: "1:1021056019416:web:29770cb3b24329bc82a0ad"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db   = firebase.firestore();
+  const provider = new firebase.auth.GoogleAuthProvider();
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyBQUBb2rQ5OFrr86GUpGqlb3Dmp8NLYww0",
-      authDomain: "bolao-hc-copa-2026.firebaseapp.com",
-      projectId: "bolao-hc-copa-2026",
-      storageBucket: "bolao-hc-copa-2026.firebasestorage.app",
-      messagingSenderId: "1021056019416",
-      appId: "1:1021056019416:web:29770cb3b24329bc82a0ad"
+  const ADMIN_EMAIL  = "hugoleonardobc@gmail.com";
+  const DEADLINE     = new Date("2026-06-20T23:59:00-03:00");
+  const PTS_EXATO    = 15;
+  const PTS_RESULTADO= 10;
+  const PRED_PTS     = { champion:50, vicechampion:30, third:20, topscorer:25, bestplayer:40 };
+  const PRED_LABELS  = [
+    { key:"champion",    label:"🏆 Campeão" },
+    { key:"vicechampion",label:"🥈 Vice-campeão" },
+    { key:"third",       label:"🥉 Terceiro lugar" },
+    { key:"topscorer",   label:"⚽ Artilheiro" },
+    { key:"bestplayer",  label:"🌟 Melhor Jogador" },
+  ];
+
+  const FLAGS = {
+    "Mexico":"mx","South Africa":"za","South Korea":"kr","Canada":"ca","Qatar":"qa","Switzerland":"ch",
+    "Brazil":"br","Morocco":"ma","Haiti":"ht","Scotland":"gb-sct","USA":"us","Paraguay":"py",
+    "Australia":"au","Germany":"de","Curaçao":"cw","Ivory Coast":"ci","Ecuador":"ec",
+    "Netherlands":"nl","Japan":"jp","Tunisia":"tn","Belgium":"be","Egypt":"eg","Iran":"ir",
+    "New Zealand":"nz","Spain":"es","Cape Verde":"cv","Saudi Arabia":"sa","Uruguay":"uy",
+    "France":"fr","Senegal":"sn","Norway":"no","Argentina":"ar","Algeria":"dz","Austria":"at",
+    "Jordan":"jo","Portugal":"pt","Colombia":"co","Uzbekistan":"uz","England":"gb-eng",
+    "Croatia":"hr","Ghana":"gh","Panama":"pa",
+  };
+  const T = {
+    "Mexico":"México","South Africa":"África do Sul","South Korea":"Coreia do Sul","Canada":"Canadá",
+    "Qatar":"Catar","Switzerland":"Suíça","Brazil":"Brasil","Morocco":"Marrocos","Haiti":"Haiti",
+    "Scotland":"Escócia","USA":"EUA","Paraguay":"Paraguai","Australia":"Austrália","Germany":"Alemanha",
+    "Curaçao":"Curaçao","Ivory Coast":"Costa do Marfim","Ecuador":"Equador","Netherlands":"Holanda",
+    "Japan":"Japão","Tunisia":"Tunísia","Belgium":"Bélgica","Egypt":"Egito","Iran":"Irã",
+    "New Zealand":"Nova Zelândia","Spain":"Espanha","Cape Verde":"Cabo Verde","Saudi Arabia":"Arábia Saudita",
+    "Uruguay":"Uruguai","France":"França","Senegal":"Senegal","Norway":"Noruega","Argentina":"Argentina",
+    "Algeria":"Argélia","Austria":"Áustria","Jordan":"Jordânia","Portugal":"Portugal","Colombia":"Colômbia",
+    "Uzbekistan":"Uzbequistão","England":"Inglaterra","Croatia":"Croácia","Ghana":"Gana","Panama":"Panamá",
+  };
+  const tname = n => T[n] || n;
+
+  const Flag = ({ name, size="md" }) => {
+    const code = FLAGS[name];
+    if (!code) return <span className="text-gray-300 text-xs">🏳</span>;
+    return (
+      <img
+        src={`https://flagcdn.com/w40/${code}.png`}
+        className={size==="sm" ? "flag-sm" : "flag-img"}
+        alt={name}
+        onError={e => { e.target.style.display="none"; }}
+      />
+    );
+  };
+
+  const RAW = [
+    ["A","1","Mexico","South Africa","Cidade do México","2026-06-11T13:00:00-06:00"],
+    ["A","1","South Korea","Vencedor Rep. UEFA D","Guadalajara","2026-06-11T20:00:00-06:00"],
+    ["A","2","Vencedor Rep. UEFA D","South Africa","Atlanta","2026-06-18T12:00:00-04:00"],
+    ["A","2","Mexico","South Korea","Guadalajara","2026-06-18T19:00:00-06:00"],
+    ["A","3","Vencedor Rep. UEFA D","Mexico","Cidade do México","2026-06-24T19:00:00-06:00"],
+    ["A","3","South Africa","South Korea","Monterrey","2026-06-24T19:00:00-06:00"],
+    ["B","1","Canada","Vencedor Rep. UEFA A","Toronto","2026-06-12T15:00:00-04:00"],
+    ["B","1","Qatar","Switzerland","San Francisco","2026-06-13T12:00:00-07:00"],
+    ["B","2","Switzerland","Vencedor Rep. UEFA A","Los Angeles","2026-06-18T12:00:00-07:00"],
+    ["B","2","Canada","Qatar","Vancouver","2026-06-18T15:00:00-07:00"],
+    ["B","3","Switzerland","Canada","Vancouver","2026-06-24T12:00:00-07:00"],
+    ["B","3","Vencedor Rep. UEFA A","Qatar","Seattle","2026-06-24T12:00:00-07:00"],
+    ["C","1","Brazil","Morocco","Nova York/NJ","2026-06-13T18:00:00-04:00"],
+    ["C","1","Haiti","Scotland","Boston","2026-06-13T21:00:00-04:00"],
+    ["C","2","Scotland","Morocco","Boston","2026-06-19T18:00:00-04:00"],
+    ["C","2","Brazil","Haiti","Filadélfia","2026-06-19T21:00:00-04:00"],
+    ["C","3","Scotland","Brazil","Miami","2026-06-24T18:00:00-04:00"],
+    ["C","3","Morocco","Haiti","Atlanta","2026-06-24T18:00:00-04:00"],
+    ["D","1","USA","Paraguay","Los Angeles","2026-06-12T18:00:00-07:00"],
+    ["D","1","Australia","Vencedor Rep. UEFA C","Vancouver","2026-06-13T21:00:00-07:00"],
+    ["D","2","USA","Australia","Seattle","2026-06-19T12:00:00-07:00"],
+    ["D","2","Vencedor Rep. UEFA C","Paraguay","San Francisco","2026-06-19T21:00:00-07:00"],
+    ["D","3","Vencedor Rep. UEFA C","USA","Los Angeles","2026-06-25T19:00:00-07:00"],
+    ["D","3","Paraguay","Australia","San Francisco","2026-06-25T19:00:00-07:00"],
+    ["E","1","Germany","Curaçao","Houston","2026-06-14T12:00:00-05:00"],
+    ["E","1","Ivory Coast","Ecuador","Filadélfia","2026-06-14T19:00:00-04:00"],
+    ["E","2","Germany","Ivory Coast","Toronto","2026-06-20T16:00:00-04:00"],
+    ["E","2","Ecuador","Curaçao","Kansas City","2026-06-20T19:00:00-05:00"],
+    ["E","3","Curaçao","Ivory Coast","Filadélfia","2026-06-25T16:00:00-04:00"],
+    ["E","3","Ecuador","Germany","Nova York/NJ","2026-06-25T16:00:00-04:00"],
+    ["F","1","Netherlands","Japan","Dallas","2026-06-14T15:00:00-05:00"],
+    ["F","1","Vencedor Rep. UEFA B","Tunisia","Monterrey","2026-06-14T20:00:00-06:00"],
+    ["F","2","Netherlands","Vencedor Rep. UEFA B","Houston","2026-06-20T12:00:00-05:00"],
+    ["F","2","Tunisia","Japan","Monterrey","2026-06-20T22:00:00-06:00"],
+    ["F","3","Japan","Vencedor Rep. UEFA B","Dallas","2026-06-25T18:00:00-05:00"],
+    ["F","3","Tunisia","Netherlands","Kansas City","2026-06-25T18:00:00-05:00"],
+    ["G","1","Belgium","Egypt","Seattle","2026-06-15T12:00:00-07:00"],
+    ["G","1","Iran","New Zealand","Los Angeles","2026-06-15T18:00:00-07:00"],
+    ["G","2","Belgium","Iran","Los Angeles","2026-06-21T12:00:00-07:00"],
+    ["G","2","New Zealand","Egypt","Vancouver","2026-06-21T18:00:00-07:00"],
+    ["G","3","Egypt","Iran","Seattle","2026-06-26T20:00:00-07:00"],
+    ["G","3","New Zealand","Belgium","Vancouver","2026-06-26T20:00:00-07:00"],
+    ["H","1","Spain","Cape Verde","Atlanta","2026-06-15T12:00:00-04:00"],
+    ["H","1","Saudi Arabia","Uruguay","Miami","2026-06-15T18:00:00-04:00"],
+    ["H","2","Spain","Saudi Arabia","Atlanta","2026-06-21T12:00:00-04:00"],
+    ["H","2","Uruguay","Cape Verde","Miami","2026-06-21T18:00:00-04:00"],
+    ["H","3","Cape Verde","Saudi Arabia","Houston","2026-06-26T19:00:00-05:00"],
+    ["H","3","Uruguay","Spain","Guadalajara","2026-06-26T18:00:00-06:00"],
+    ["I","1","France","Senegal","Nova York/NJ","2026-06-16T15:00:00-04:00"],
+    ["I","1","Vencedor Rep. CONMEBOL 2","Norway","Boston","2026-06-16T18:00:00-04:00"],
+    ["I","2","France","Vencedor Rep. CONMEBOL 2","Filadélfia","2026-06-22T17:00:00-04:00"],
+    ["I","2","Norway","Senegal","Nova York/NJ","2026-06-22T20:00:00-04:00"],
+    ["I","3","Norway","France","Boston","2026-06-26T15:00:00-04:00"],
+    ["I","3","Senegal","Vencedor Rep. CONMEBOL 2","Toronto","2026-06-26T15:00:00-04:00"],
+    ["J","1","Argentina","Algeria","Kansas City","2026-06-16T20:00:00-05:00"],
+    ["J","1","Austria","Jordan","San Francisco","2026-06-16T21:00:00-07:00"],
+    ["J","2","Argentina","Austria","Dallas","2026-06-22T12:00:00-05:00"],
+    ["J","2","Jordan","Algeria","San Francisco","2026-06-22T20:00:00-07:00"],
+    ["J","3","Algeria","Austria","Kansas City","2026-06-27T21:00:00-05:00"],
+    ["J","3","Jordan","Argentina","Dallas","2026-06-27T21:00:00-05:00"],
+    ["K","1","Portugal","Vencedor Rep. CONMEBOL 1","Houston","2026-06-17T12:00:00-05:00"],
+    ["K","1","Uzbekistan","Colombia","Cidade do México","2026-06-17T20:00:00-06:00"],
+    ["K","2","Portugal","Uzbekistan","Houston","2026-06-23T12:00:00-05:00"],
+    ["K","2","Colombia","Vencedor Rep. CONMEBOL 1","Guadalajara","2026-06-23T20:00:00-06:00"],
+    ["K","3","Colombia","Portugal","Miami","2026-06-27T19:30:00-04:00"],
+    ["K","3","Vencedor Rep. CONMEBOL 1","Uzbekistan","Atlanta","2026-06-27T19:30:00-04:00"],
+    ["L","1","England","Croatia","Dallas","2026-06-17T15:00:00-05:00"],
+    ["L","1","Ghana","Panama","Toronto","2026-06-17T19:00:00-04:00"],
+    ["L","2","England","Ghana","Boston","2026-06-23T16:00:00-04:00"],
+    ["L","2","Panama","Croatia","Toronto","2026-06-23T19:00:00-04:00"],
+    ["L","3","Panama","England","Nova York/NJ","2026-06-27T17:00:00-04:00"],
+    ["L","3","Croatia","Ghana","Filadélfia","2026-06-27T17:00:00-04:00"],
+  ];
+  const SEED_MATCHES = RAW.map((r,i) => ({
+    id:"m"+String(i+1).padStart(2,"0"),
+    group:r[0], matchday:r[1], team1:r[2], team2:r[3], ground:r[4], kickoff:r[5], result:null,
+  }));
+
+  const fmtDate = iso => new Date(iso).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit"});
+  const fmtTime = iso => new Date(iso).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",hour:"2-digit",minute:"2-digit"});
+  const isLocked = iso => new Date() >= new Date(new Date(iso).getTime()-10*60000);
+
+  function outcome(s) {
+    if (!s||!s.includes("-")) return null;
+    const [a,b]=s.split("-").map(n=>parseInt(n.trim(),10));
+    if (isNaN(a)||isNaN(b)) return null;
+    return a>b?"1":a<b?"2":"x";
+  }
+  function betPoints(guess,result) {
+    if (!guess||!result) return 0;
+    if (guess.trim()===result.trim()) return PTS_EXATO;
+    const a=outcome(guess),b=outcome(result);
+    return a&&b&&a===b?PTS_RESULTADO:0;
+  }
+  function userTotal(u,matches,official) {
+    let t=0;
+    matches.forEach(m=>{ if(m.result) t+=betPoints((u.bets||{})[m.id]?.guess,m.result); });
+    if (official) PRED_LABELS.forEach(p=>{
+      const ans=(official[p.key]||"").trim().toLowerCase();
+      const g=((u.predictions||{})[p.key]||"").trim().toLowerCase();
+      if (ans&&g&&ans===g) t+=PRED_PTS[p.key];
+    });
+    return t;
+  }
+  function calcStandings(gMatches) {
+    const table={};
+    gMatches.forEach(m=>{
+      [m.team1,m.team2].forEach(t=>{ if(!table[t]) table[t]={name:t,pts:0,j:0,v:0,e:0,d:0,gp:0,gc:0,sg:0}; });
+      if (!m.result) return;
+      const [g1,g2]=m.result.split("-").map(Number);
+      const t1=table[m.team1],t2=table[m.team2];
+      t1.j++;t2.j++;t1.gp+=g1;t1.gc+=g2;t1.sg+=g1-g2;t2.gp+=g2;t2.gc+=g1;t2.sg+=g2-g1;
+      if(g1>g2){t1.v++;t1.pts+=3;t2.d++;}
+      else if(g1<g2){t2.v++;t2.pts+=3;t1.d++;}
+      else{t1.e++;t1.pts++;t2.e++;t2.pts++;}
+    });
+    return Object.values(table).sort((a,b)=>b.pts-a.pts||b.sg-a.sg||b.gp-a.gp);
+  }
+
+  // ====================== BetRow — linha de aposta inline ======================
+  function BetRow({ m, bet, canEdit, onSave }) {
+    const [g1,setG1] = useState(bet.guess ? bet.guess.split("-")[0] : "");
+    const [g2,setG2] = useState(bet.guess ? bet.guess.split("-")[1] : "");
+
+    const handleSave = () => {
+      if (g1===""||g2==="") return;
+      onSave(g1, g2);
     };
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.firestore();
-    const provider = new firebase.auth.GoogleAuthProvider();
 
-    const ADMIN_EMAIL = "hugoleonardobc@gmail.com";
-    const DEADLINE = new Date("2026-06-20T23:59:00-03:00");
-    const PTS_EXATO = 15, PTS_RESULTADO = 10;
-    const PRED_PTS = { champion:50, vicechampion:30, third:20, topscorer:25, bestplayer:40 };
-    const PRED_LABELS = [
-      { key:"champion", label:"🏆 Campeão" },
-      { key:"vicechampion", label:"🥈 Vice-campeão" },
-      { key:"third", label:"🥉 Terceiro lugar" },
-      { key:"topscorer", label:"⚽ Artilheiro" },
-      { key:"bestplayer", label:"🌟 Melhor Jogador" },
-    ];
+    return (
+      <div className="space-y-2">
+        {/* LINHA TIME 1 */}
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg
+            ${canEdit
+              ? "border-2 border-gray-200 focus-within:border-emerald-400"
+              : "bg-orange-50 border-2 border-orange-100"}`}>
+            {canEdit
+              ? <input type="number" min="0" max="20" value={g1} onChange={e=>setG1(e.target.value)} className="w-full h-full text-center font-bold text-lg bg-transparent focus:outline-none" />
+              : <span className="text-orange-400">{g1||"–"}</span>
+            }
+          </div>
+          <Flag name={m.team1} />
+          <span className="font-semibold text-gray-800 flex-1 text-sm">{tname(m.team1)}</span>
+        </div>
 
-    // Bandeiras via flagcdn (confiável, sempre funciona)
-    const FLAGS = {
-      "Mexico":"mx","South Africa":"za","South Korea":"kr","Canada":"ca","Qatar":"qa","Switzerland":"ch",
-      "Brazil":"br","Morocco":"ma","Haiti":"ht","Scotland":"gb-sct","USA":"us","Paraguay":"py",
-      "Australia":"au","Germany":"de","Curaçao":"cw","Ivory Coast":"ci","Ecuador":"ec",
-      "Netherlands":"nl","Japan":"jp","Tunisia":"tn","Belgium":"be","Egypt":"eg","Iran":"ir",
-      "New Zealand":"nz","Spain":"es","Cape Verde":"cv","Saudi Arabia":"sa","Uruguay":"uy",
-      "France":"fr","Senegal":"sn","Norway":"no","Argentina":"ar","Algeria":"dz","Austria":"at",
-      "Jordan":"jo","Portugal":"pt","Colombia":"co","Uzbekistan":"uz","England":"gb-eng",
-      "Croatia":"hr","Ghana":"gh","Panama":"pa",
-    };
-    const T = {
-      "Mexico":"México","South Africa":"África do Sul","South Korea":"Coreia do Sul","Canada":"Canadá",
-      "Qatar":"Catar","Switzerland":"Suíça","Brazil":"Brasil","Morocco":"Marrocos","Haiti":"Haiti",
-      "Scotland":"Escócia","USA":"EUA","Paraguay":"Paraguai","Australia":"Austrália","Germany":"Alemanha",
-      "Curaçao":"Curaçao","Ivory Coast":"Costa do Marfim","Ecuador":"Equador","Netherlands":"Holanda",
-      "Japan":"Japão","Tunisia":"Tunísia","Belgium":"Bélgica","Egypt":"Egito","Iran":"Irã",
-      "New Zealand":"Nova Zelândia","Spain":"Espanha","Cape Verde":"Cabo Verde","Saudi Arabia":"Arábia Saudita",
-      "Uruguay":"Uruguai","France":"França","Senegal":"Senegal","Norway":"Noruega","Argentina":"Argentina",
-      "Algeria":"Argélia","Austria":"Áustria","Jordan":"Jordânia","Portugal":"Portugal","Colombia":"Colômbia",
-      "Uzbekistan":"Uzbequistão","England":"Inglaterra","Croatia":"Croácia","Ghana":"Gana","Panama":"Panamá",
-    };
-    const tname = n => T[n] || n;
-    const Flag = ({ code, size="md" }) => {
-      const cls = size === "sm" ? "flag-sm" : "flag-img";
-      if (!code) return <span className="text-gray-300 text-xs">🎫</span>;
-      return <img src={`https://flagcdn.com/w40/${code}.png`} className={cls} alt="" onError={e => { e.target.style.display='none'; }} />;
-    };
-    const TeamFlag = ({ name, size="md" }) => <Flag code={FLAGS[name]} size={size} />;
+        {/* separador */}
+        <div className="flex items-center gap-3">
+          <div className="w-10 flex items-center justify-center">
+            <span className="text-gray-300 font-bold text-xs">×</span>
+          </div>
+          <span className="text-xs text-gray-300">vs</span>
+        </div>
 
-    const RAW = [
-      ["A","1","Mexico","South Africa","Cidade do México","2026-06-11T13:00:00-06:00"],
-      ["A","1","South Korea","Vencedor Rep. UEFA D","Guadalajara","2026-06-11T20:00:00-06:00"],
-      ["A","2","Vencedor Rep. UEFA D","South Africa","Atlanta","2026-06-18T12:00:00-04:00"],
-      ["A","2","Mexico","South Korea","Guadalajara","2026-06-18T19:00:00-06:00"],
-      ["A","3","Vencedor Rep. UEFA D","Mexico","Cidade do México","2026-06-24T19:00:00-06:00"],
-      ["A","3","South Africa","South Korea","Monterrey","2026-06-24T19:00:00-06:00"],
-      ["B","1","Canada","Vencedor Rep. UEFA A","Toronto","2026-06-12T15:00:00-04:00"],
-      ["B","1","Qatar","Switzerland","San Francisco","2026-06-13T12:00:00-07:00"],
-      ["B","2","Switzerland","Vencedor Rep. UEFA A","Los Angeles","2026-06-18T12:00:00-07:00"],
-      ["B","2","Canada","Qatar","Vancouver","2026-06-18T15:00:00-07:00"],
-      ["B","3","Switzerland","Canada","Vancouver","2026-06-24T12:00:00-07:00"],
-      ["B","3","Vencedor Rep. UEFA A","Qatar","Seattle","2026-06-24T12:00:00-07:00"],
-      ["C","1","Brazil","Morocco","Nova York/NJ","2026-06-13T18:00:00-04:00"],
-      ["C","1","Haiti","Scotland","Boston","2026-06-13T21:00:00-04:00"],
-      ["C","2","Scotland","Morocco","Boston","2026-06-19T18:00:00-04:00"],
-      ["C","2","Brazil","Haiti","Filadélfia","2026-06-19T21:00:00-04:00"],
-      ["C","3","Scotland","Brazil","Miami","2026-06-24T18:00:00-04:00"],
-      ["C","3","Morocco","Haiti","Atlanta","2026-06-24T18:00:00-04:00"],
-      ["D","1","USA","Paraguay","Los Angeles","2026-06-12T18:00:00-07:00"],
-      ["D","1","Australia","Vencedor Rep. UEFA C","Vancouver","2026-06-13T21:00:00-07:00"],
-      ["D","2","USA","Australia","Seattle","2026-06-19T12:00:00-07:00"],
-      ["D","2","Vencedor Rep. UEFA C","Paraguay","San Francisco","2026-06-19T21:00:00-07:00"],
-      ["D","3","Vencedor Rep. UEFA C","USA","Los Angeles","2026-06-25T19:00:00-07:00"],
-      ["D","3","Paraguay","Australia","San Francisco","2026-06-25T19:00:00-07:00"],
-      ["E","1","Germany","Curaçao","Houston","2026-06-14T12:00:00-05:00"],
-      ["E","1","Ivory Coast","Ecuador","Filadélfia","2026-06-14T19:00:00-04:00"],
-      ["E","2","Germany","Ivory Coast","Toronto","2026-06-20T16:00:00-04:00"],
-      ["E","2","Ecuador","Curaçao","Kansas City","2026-06-20T19:00:00-05:00"],
-      ["E","3","Curaçao","Ivory Coast","Filadélfia","2026-06-25T16:00:00-04:00"],
-      ["E","3","Ecuador","Germany","Nova York/NJ","2026-06-25T16:00:00-04:00"],
-      ["F","1","Netherlands","Japan","Dallas","2026-06-14T15:00:00-05:00"],
-      ["F","1","Vencedor Rep. UEFA B","Tunisia","Monterrey","2026-06-14T20:00:00-06:00"],
-      ["F","2","Netherlands","Vencedor Rep. UEFA B","Houston","2026-06-20T12:00:00-05:00"],
-      ["F","2","Tunisia","Japan","Monterrey","2026-06-20T22:00:00-06:00"],
-      ["F","3","Japan","Vencedor Rep. UEFA B","Dallas","2026-06-25T18:00:00-05:00"],
-      ["F","3","Tunisia","Netherlands","Kansas City","2026-06-25T18:00:00-05:00"],
-      ["G","1","Belgium","Egypt","Seattle","2026-06-15T12:00:00-07:00"],
-      ["G","1","Iran","New Zealand","Los Angeles","2026-06-15T18:00:00-07:00"],
-      ["G","2","Belgium","Iran","Los Angeles","2026-06-21T12:00:00-07:00"],
-      ["G","2","New Zealand","Egypt","Vancouver","2026-06-21T18:00:00-07:00"],
-      ["G","3","Egypt","Iran","Seattle","2026-06-26T20:00:00-07:00"],
-      ["G","3","New Zealand","Belgium","Vancouver","2026-06-26T20:00:00-07:00"],
-      ["H","1","Spain","Cape Verde","Atlanta","2026-06-15T12:00:00-04:00"],
-      ["H","1","Saudi Arabia","Uruguay","Miami","2026-06-15T18:00:00-04:00"],
-      ["H","2","Spain","Saudi Arabia","Atlanta","2026-06-21T12:00:00-04:00"],
-      ["H","2","Uruguay","Cape Verde","Miami","2026-06-21T18:00:00-04:00"],
-      ["H","3","Cape Verde","Saudi Arabia","Houston","2026-06-26T19:00:00-05:00"],
-      ["H","3","Uruguay","Spain","Guadalajara","2026-06-26T18:00:00-06:00"],
-      ["I","1","France","Senegal","Nova York/NJ","2026-06-16T15:00:00-04:00"],
-      ["I","1","Vencedor Rep. CONMEBOL 2","Norway","Boston","2026-06-16T18:00:00-04:00"],
-      ["I","2","France","Vencedor Rep. CONMEBOL 2","Filadélfia","2026-06-22T17:00:00-04:00"],
-      ["I","2","Norway","Senegal","Nova York/NJ","2026-06-22T20:00:00-04:00"],
-      ["I","3","Norway","France","Boston","2026-06-26T15:00:00-04:00"],
-      ["I","3","Senegal","Vencedor Rep. CONMEBOL 2","Toronto","2026-06-26T15:00:00-04:00"],
-      ["J","1","Argentina","Algeria","Kansas City","2026-06-16T20:00:00-05:00"],
-      ["J","1","Austria","Jordan","San Francisco","2026-06-16T21:00:00-07:00"],
-      ["J","2","Argentina","Austria","Dallas","2026-06-22T12:00:00-05:00"],
-      ["J","2","Jordan","Algeria","San Francisco","2026-06-22T20:00:00-07:00"],
-      ["J","3","Algeria","Austria","Kansas City","2026-06-27T21:00:00-05:00"],
-      ["J","3","Jordan","Argentina","Dallas","2026-06-27T21:00:00-05:00"],
-      ["K","1","Portugal","Vencedor Rep. CONMEBOL 1","Houston","2026-06-17T12:00:00-05:00"],
-      ["K","1","Uzbekistan","Colombia","Cidade do México","2026-06-17T20:00:00-06:00"],
-      ["K","2","Portugal","Uzbekistan","Houston","2026-06-23T12:00:00-05:00"],
-      ["K","2","Colombia","Vencedor Rep. CONMEBOL 1","Guadalajara","2026-06-23T20:00:00-06:00"],
-      ["K","3","Colombia","Portugal","Miami","2026-06-27T19:30:00-04:00"],
-      ["K","3","Vencedor Rep. CONMEBOL 1","Uzbekistan","Atlanta","2026-06-27T19:30:00-04:00"],
-      ["L","1","England","Croatia","Dallas","2026-06-17T15:00:00-05:00"],
-      ["L","1","Ghana","Panama","Toronto","2026-06-17T19:00:00-04:00"],
-      ["L","2","England","Ghana","Boston","2026-06-23T16:00:00-04:00"],
-      ["L","2","Panama","Croatia","Toronto","2026-06-23T19:00:00-04:00"],
-      ["L","3","Panama","England","Nova York/NJ","2026-06-27T17:00:00-04:00"],
-      ["L","3","Croatia","Ghana","Filadélfia","2026-06-27T17:00:00-04:00"],
-    ];
-    const SEED_MATCHES = RAW.map((r,i) => ({
-      id:"m"+String(i+1).padStart(2,"0"), group:r[0], matchday:r[1],
-      team1:r[2], team2:r[3], ground:r[4], kickoff:r[5], result:null,
-    }));
+        {/* LINHA TIME 2 */}
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg
+            ${canEdit
+              ? "border-2 border-gray-200 focus-within:border-emerald-400"
+              : "bg-orange-50 border-2 border-orange-100"}`}>
+            {canEdit
+              ? <input type="number" min="0" max="20" value={g2} onChange={e=>setG2(e.target.value)} className="w-full h-full text-center font-bold text-lg bg-transparent focus:outline-none" />
+              : <span className="text-orange-400">{g2||"–"}</span>
+            }
+          </div>
+          <Flag name={m.team2} />
+          <span className="font-semibold text-gray-800 flex-1 text-sm">{tname(m.team2)}</span>
+        </div>
 
-    const fmtDate = iso => new Date(iso).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit"});
-    const fmtTime = iso => new Date(iso).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",hour:"2-digit",minute:"2-digit"});
-    const isLocked = iso => new Date() >= new Date(new Date(iso).getTime()-10*60000);
+        {/* botão enviar/alterar */}
+        {canEdit && (
+          <button
+            onClick={handleSave}
+            disabled={g1===""||g2===""}
+            className="w-full mt-1 py-2 rounded-xl font-semibold text-sm transition
+              bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-200 disabled:text-gray-400 text-white">
+            {bet.guess ? "Alterar aposta" : "Enviar aposta"}
+          </button>
+        )}
+      </div>
+    );
+  }
 
-    function outcome(s) {
-      if (!s||!s.includes("-")) return null;
-      const [a,b]=s.split("-").map(n=>parseInt(n.trim(),10));
-      if (isNaN(a)||isNaN(b)) return null;
-      return a>b?"1":a<b?"2":"x";
-    }
-    function betPoints(guess,result) {
-      if (!guess||!result) return 0;
-      if (guess.trim()===result.trim()) return PTS_EXATO;
-      const a=outcome(guess),b=outcome(result);
-      return a&&b&&a===b?PTS_RESULTADO:0;
-    }
-    function userTotal(u,matches,official) {
-      let t=0;
-      matches.forEach(m=>{ if(m.result) t+=betPoints((u.bets||{})[m.id]?.guess,m.result); });
-      if (official) PRED_LABELS.forEach(p=>{
-        const ans=(official[p.key]||"").trim().toLowerCase();
-        const guess=((u.predictions||{})[p.key]||"").trim().toLowerCase();
-        if (ans&&guess&&ans===guess) t+=PRED_PTS[p.key];
+  // ====================== ResultRow — placar oficial ======================
+  function ResultRow({ m, pts }) {
+    const [g1,g2] = m.result.split("-");
+    const color = pts===PTS_EXATO ? "bg-emerald-500 text-white" : pts===PTS_RESULTADO ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-600";
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg ${color}`}>{g1}</div>
+          <Flag name={m.team1} />
+          <span className="font-semibold text-gray-800 flex-1 text-sm">{tname(m.team1)}</span>
+        </div>
+        <div className="flex items-center gap-3 ml-1">
+          <span className="w-8 text-center text-gray-300 text-xs font-bold">×</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg ${color}`}>{g2}</div>
+          <Flag name={m.team2} />
+          <span className="font-semibold text-gray-800 flex-1 text-sm">{tname(m.team2)}</span>
+        </div>
+      </div>
+    );
+  }
+
+  // ====================== APP ======================
+  function App() {
+    const [user,setUser]=useState(null);
+    const [profile,setProfile]=useState(null);
+    const [authLoading,setAuthLoading]=useState(true);
+    const [loginInProgress,setLoginInProgress]=useState(false);
+    const [needName,setNeedName]=useState(false);
+    const [nameInput,setNameInput]=useState("");
+    const [matches,setMatches]=useState([]);
+    const [allUsers,setAllUsers]=useState([]);
+    const [official,setOfficial]=useState(null);
+    const [tab,setTab]=useState("placares");
+    const [resultDrafts,setResultDrafts]=useState({});
+    const [msg,setMsg]=useState("");
+    const [editingTeam,setEditingTeam]=useState(null);
+    const [groupRounds,setGroupRounds]=useState({});
+
+    const isAdmin=user&&user.email===ADMIN_EMAIL;
+    const deadlinePassed=new Date()>DEADLINE;
+    const daysLeft=Math.max(0,Math.ceil((DEADLINE-new Date())/86400000));
+
+    useEffect(()=>{
+      const unsub=auth.onAuthStateChanged(async u=>{
+        if(u){
+          setUser(u);
+          try{
+            const snap=await db.collection("users").doc(u.uid).get();
+            if(!snap.exists){setNeedName(true);}
+            else{setProfile(snap.data());setNeedName(false);}
+          }catch(e){setNeedName(true);}
+        }else{setUser(null);setProfile(null);setNeedName(false);}
+        setLoginInProgress(false);setAuthLoading(false);
       });
-      return t;
-    }
-    function calcStandings(gMatches) {
-      const table={};
-      gMatches.forEach(m=>{
-        [m.team1,m.team2].forEach(t=>{ if(!table[t]) table[t]={name:t,pts:0,j:0,v:0,e:0,d:0,gp:0,gc:0,sg:0}; });
-        if (!m.result) return;
-        const [g1,g2]=m.result.split("-").map(Number);
-        const t1=table[m.team1],t2=table[m.team2];
-        t1.j++;t2.j++;t1.gp+=g1;t1.gc+=g2;t1.sg+=g1-g2;t2.gp+=g2;t2.gc+=g1;t2.sg+=g2-g1;
-        if (g1>g2){t1.v++;t1.pts+=3;t2.d++;}
-        else if (g1<g2){t2.v++;t2.pts+=3;t1.d++;}
-        else{t1.e++;t1.pts++;t2.e++;t2.pts++;}
-      });
-      return Object.values(table).sort((a,b)=>b.pts-a.pts||b.sg-a.sg||b.gp-a.gp);
-    }
+      return unsub;
+    },[]);
 
-    // ====================== APP ======================
-    function App() {
-      const [user,setUser]=useState(null);
-      const [profile,setProfile]=useState(null);
-      const [authLoading,setAuthLoading]=useState(true);
-      const [loginInProgress,setLoginInProgress]=useState(false);
-      const [needName,setNeedName]=useState(false);
-      const [nameInput,setNameInput]=useState("");
-      const [matches,setMatches]=useState([]);
-      const [allUsers,setAllUsers]=useState([]);
-      const [official,setOfficial]=useState(null);
-      const [tab,setTab]=useState("placares");
-      const [drafts,setDrafts]=useState({});
-      const [resultDrafts,setResultDrafts]=useState({});
-      const [msg,setMsg]=useState("");
-      const [editingTeam,setEditingTeam]=useState(null);
-      const [groupRounds,setGroupRounds]=useState({});
+    useEffect(()=>{
+      if(!user||needName) return;
+      const u1=db.collection("matches").orderBy("kickoff").onSnapshot(s=>setMatches(s.docs.map(d=>d.data())));
+      const u2=db.collection("users").onSnapshot(s=>setAllUsers(s.docs.map(d=>d.data())));
+      const u3=db.collection("config").doc("official").onSnapshot(s=>setOfficial(s.exists?s.data():{}));
+      return ()=>{u1();u2();u3();};
+    },[user,needName]);
 
-      const isAdmin=user&&user.email===ADMIN_EMAIL;
-      const deadlinePassed=new Date()>DEADLINE;
-      const daysLeft=Math.max(0,Math.ceil((DEADLINE-new Date())/86400000));
+    const login=async()=>{
+      try{setLoginInProgress(true);await auth.signInWithPopup(provider);}
+      catch(e){setLoginInProgress(false);setMsg("Erro no login: "+e.message);}
+    };
+    const logout=()=>auth.signOut();
 
-      useEffect(()=>{
-        const unsub=auth.onAuthStateChanged(async u=>{
-          if (u) {
-            setUser(u);
-            try {
-              const snap=await db.collection("users").doc(u.uid).get();
-              if (!snap.exists){setNeedName(true);}
-              else{setProfile(snap.data());setNeedName(false);}
-            } catch(e){setNeedName(true);}
-          } else {setUser(null);setProfile(null);setNeedName(false);}
-          setLoginInProgress(false);setAuthLoading(false);
-        });
-        return unsub;
-      },[]);
+    const saveName=async()=>{
+      if(!nameInput.trim()) return;
+      try{
+        const data={uid:user.uid,email:user.email,displayName:nameInput.trim(),bets:{},predictions:{},predChanges:{},predSubmitted:false,createdAt:Date.now()};
+        await db.collection("users").doc(user.uid).set(data);
+        setProfile(data);setNeedName(false);
+      }catch(e){setMsg("Erro: "+e.message);}
+    };
 
-      useEffect(()=>{
-        if (!user||needName) return;
-        const u1=db.collection("matches").orderBy("kickoff").onSnapshot(s=>setMatches(s.docs.map(d=>d.data())));
-        const u2=db.collection("users").onSnapshot(s=>setAllUsers(s.docs.map(d=>d.data())));
-        const u3=db.collection("config").doc("official").onSnapshot(s=>setOfficial(s.exists?s.data():{}));
-        return ()=>{u1();u2();u3();};
-      },[user,needName]);
+    const seed=async()=>{
+      setMsg("Semeando 72 jogos...");
+      try{
+        const batch=db.batch();
+        SEED_MATCHES.forEach(m=>batch.set(db.collection("matches").doc(m.id),m));
+        await batch.commit();setMsg("✅ 72 jogos cadastrados!");
+      }catch(e){setMsg("Erro: "+e.message);}
+    };
 
-      const login=async()=>{
-        try{setLoginInProgress(true);await auth.signInWithPopup(provider);}
-        catch(e){setLoginInProgress(false);setMsg("Erro no login: "+e.message);}
-      };
-      const logout=()=>auth.signOut();
+    const saveBet=async(m,g1str,g2str)=>{
+      const g1=parseInt(g1str,10),g2=parseInt(g2str,10);
+      if(isNaN(g1)||isNaN(g2)) return;
+      const val=`${g1}-${g2}`;
+      const cur=(profile.bets||{})[m.id]||{guess:"",changes:0};
+      if(val===cur.guess) return;
+      try{
+        const changes=cur.guess?cur.changes+1:0;
+        const newBets={...(profile.bets||{}),[m.id]:{guess:val,changes}};
+        await db.collection("users").doc(user.uid).update({bets:newBets});
+        setProfile({...profile,bets:newBets});
+        setMsg("✅ Aposta salva!");
+      }catch(e){setMsg("Erro: "+e.message);}
+    };
 
-      const saveName=async()=>{
-        if (!nameInput.trim()) return;
-        try {
-          const data={uid:user.uid,email:user.email,displayName:nameInput.trim(),bets:{},predictions:{},predChanges:{},predSubmitted:false,createdAt:Date.now()};
-          await db.collection("users").doc(user.uid).set(data);
-          setProfile(data);setNeedName(false);
-        } catch(e){setMsg("Erro: "+e.message);}
-      };
+    const saveResult=async(m)=>{
+      const val=(resultDrafts[m.id]||"").trim();
+      try{
+        await db.collection("matches").doc(m.id).update({result:val||null});
+        setMsg("✅ Resultado salvo!");
+      }catch(e){setMsg("Erro: "+e.message);}
+    };
 
-      const seed=async()=>{
-        setMsg("Semeando 72 jogos...");
-        try {
-          const batch=db.batch();
-          SEED_MATCHES.forEach(m=>batch.set(db.collection("matches").doc(m.id),m));
-          await batch.commit();setMsg("✅ 72 jogos cadastrados!");
-        } catch(e){setMsg("Erro: "+e.message);}
-      };
+    const saveTeamName=async(matchId,field,newName)=>{
+      if(!newName.trim()) return;
+      try{
+        await db.collection("matches").doc(matchId).update({[field]:newName.trim()});
+        setEditingTeam(null);setMsg("✅ Nome atualizado!");
+      }catch(e){setMsg("Erro: "+e.message);}
+    };
 
-      const saveBet=async(m,g1str,g2str)=>{
-        const g1=parseInt(g1str,10),g2=parseInt(g2str,10);
-        if (isNaN(g1)||isNaN(g2)) return;
-        const val=`${g1}-${g2}`;
-        const cur=(profile.bets||{})[m.id]||{guess:"",changes:0};
-        if (val===cur.guess) return;
-        try {
-          const changes=cur.guess?cur.changes+1:0;
-          const newBets={...(profile.bets||{}),[m.id]:{guess:val,changes}};
-          await db.collection("users").doc(user.uid).update({bets:newBets});
-          setProfile({...profile,bets:newBets});
-        } catch(e){setMsg("Erro ao salvar aposta: "+e.message);}
-      };
+    const updatePred=(key,value)=>{
+      if(deadlinePassed) return;
+      if(profile.predSubmitted&&(profile.predChanges||{})[key]>=1) return;
+      setProfile({...profile,predictions:{...(profile.predictions||{}),[key]:value}});
+    };
+    const submitPred=async()=>{
+      if(deadlinePassed) return;
+      try{
+        const changes={...(profile.predChanges||{})};
+        if(profile.predSubmitted) PRED_LABELS.forEach(p=>{changes[p.key]=Math.min(1,(changes[p.key]||0)+1);});
+        const data={predictions:profile.predictions||{},predChanges:changes,predSubmitted:true};
+        await db.collection("users").doc(user.uid).update(data);
+        setProfile({...profile,...data});setMsg("✅ Previsões enviadas!");
+      }catch(e){setMsg("Erro: "+e.message);}
+    };
+    const saveOfficial=async(key,value)=>{
+      try{await db.collection("config").doc("official").set({...(official||{}),[key]:value},{merge:true});}
+      catch(e){setMsg("Erro: "+e.message);}
+    };
 
-      const saveResult=async(m)=>{
-        const val=(resultDrafts[m.id]||"").trim();
-        try {
-          await db.collection("matches").doc(m.id).update({result:val||null});
-          setMsg("✅ Resultado salvo!");
-        } catch(e){setMsg("Erro: "+e.message);}
-      };
-
-      const saveTeamName=async(matchId,field,newName)=>{
-        if (!newName.trim()) return;
-        try {
-          await db.collection("matches").doc(matchId).update({[field]:newName.trim()});
-          setEditingTeam(null);setMsg("✅ Nome atualizado!");
-        } catch(e){setMsg("Erro: "+e.message);}
-      };
-
-      const updatePred=(key,value)=>{
-        if (deadlinePassed) return;
-        if (profile.predSubmitted&&(profile.predChanges||{})[key]>=1) return;
-        setProfile({...profile,predictions:{...(profile.predictions||{}),[key]:value}});
-      };
-      const submitPred=async()=>{
-        if (deadlinePassed) return;
-        try {
-          const changes={...(profile.predChanges||{})};
-          if (profile.predSubmitted) PRED_LABELS.forEach(p=>{changes[p.key]=Math.min(1,(changes[p.key]||0)+1);});
-          const data={predictions:profile.predictions||{},predChanges:changes,predSubmitted:true};
-          await db.collection("users").doc(user.uid).update(data);
-          setProfile({...profile,...data});setMsg("✅ Previsões enviadas!");
-        } catch(e){setMsg("Erro: "+e.message);}
-      };
-      const saveOfficial=async(key,value)=>{
-        try { await db.collection("config").doc("official").set({...(official||{}),[key]:value},{merge:true}); }
-        catch(e){setMsg("Erro: "+e.message);}
-      };
-
-      // ---- Loading / Auth ----
-      if (authLoading||loginInProgress) return (
-        <div className="min-h-screen flex items-center justify-center" style={{background:"linear-gradient(135deg,#064e3b,#065f46,#047857)"}}>
-          <div className="text-white text-center">
-            <div className="text-6xl mb-4" style={{animation:"bounce 1s infinite"}}>🏆</div>
-            <p className="text-lg font-semibold">{loginInProgress?"Entrando...":"Carregando..."}</p>
-          </div>
+    // ---- Loading ----
+    if(authLoading||loginInProgress) return (
+      <div className="min-h-screen flex items-center justify-center" style={{background:"linear-gradient(135deg,#064e3b,#047857)"}}>
+        <div className="text-white text-center">
+          <div className="text-6xl mb-4">🏆</div>
+          <p className="text-lg font-semibold">{loginInProgress?"Entrando...":"Carregando..."}</p>
         </div>
-      );
+      </div>
+    );
 
-      if (!user) return (
-        <div className="min-h-screen flex items-center justify-center p-4" style={{background:"linear-gradient(135deg,#064e3b,#065f46,#047857)"}}>
-          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-yellow-400 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-                <span className="text-3xl">🏆</span>
-              </div>
-              <h1 className="text-2xl font-bold text-gray-900">Bolão HC Copa 2026</h1>
-              <p className="text-gray-500 text-sm mt-1">Faça suas previsões e compete!</p>
+    // ---- Login ----
+    if(!user) return (
+      <div className="min-h-screen flex items-center justify-center p-4" style={{background:"linear-gradient(135deg,#064e3b,#047857)"}}>
+        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 bg-yellow-400 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+              <span className="text-3xl">🏆</span>
             </div>
-            <button onClick={login} className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold py-3 px-4 rounded-xl transition shadow-sm">
-              <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-              Entrar com Google
-            </button>
-            <a href="https://wa.me/5519981719881" target="_blank" className="block text-center mt-4 text-sm text-emerald-600 font-medium hover:underline">Dúvidas? WhatsApp (19) 98171-9881</a>
-            <p className="text-xs text-gray-400 text-center mt-3">Criado por HCmaster</p>
-            {msg && <p className="text-xs text-red-500 text-center mt-2">{msg}</p>}
+            <h1 className="text-2xl font-bold text-gray-900">Bolão HC Copa 2026</h1>
+            <p className="text-gray-400 text-sm mt-1">Bora jogar!</p>
           </div>
+          <button onClick={login} className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold py-3 px-4 rounded-xl transition shadow-sm">
+            <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+            Entrar com Google
+          </button>
+          <a href="https://wa.me/5519981719881" target="_blank" className="block text-center mt-4 text-sm text-emerald-600 font-medium hover:underline">Dúvidas? WhatsApp (19) 98171-9881</a>
+          <p className="text-xs text-gray-400 text-center mt-3">Criado por HCmaster</p>
+          {msg&&<p className="text-xs text-red-500 text-center mt-2">{msg}</p>}
         </div>
-      );
+      </div>
+    );
 
-      if (needName) return (
-        <div className="min-h-screen flex items-center justify-center p-4" style={{background:"linear-gradient(135deg,#064e3b,#065f46,#047857)"}}>
-          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-yellow-400 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                <span className="text-3xl">👤</span>
-              </div>
-              <h2 className="text-xl font-bold text-gray-900">Como quer ser chamado?</h2>
-              <p className="text-gray-500 text-sm mt-1">Este nome aparece no ranking</p>
+    // ---- Nome ----
+    if(needName) return (
+      <div className="min-h-screen flex items-center justify-center p-4" style={{background:"linear-gradient(135deg,#064e3b,#047857)"}}>
+        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 bg-yellow-400 rounded-2xl flex items-center justify-center mx-auto mb-3">
+              <span className="text-3xl">👤</span>
             </div>
-            <input value={nameInput} onChange={e=>setNameInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveName()} placeholder="ex: João, Mari, Carlão..." className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:outline-none font-medium" autoFocus />
-            <button onClick={saveName} disabled={!nameInput.trim()} className="w-full mt-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-200 text-white font-bold py-3 rounded-xl transition">Continuar →</button>
-            {msg && <p className="text-xs text-red-500 text-center mt-2">{msg}</p>}
+            <h2 className="text-xl font-bold text-gray-900">Como quer ser chamado?</h2>
+            <p className="text-gray-400 text-sm mt-1">Este nome aparece no ranking</p>
           </div>
+          <input value={nameInput} onChange={e=>setNameInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveName()} placeholder="ex: João, Mari, Carlão..." className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:outline-none font-medium" autoFocus />
+          <button onClick={saveName} disabled={!nameInput.trim()} className="w-full mt-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-200 text-white font-bold py-3 rounded-xl transition">Continuar →</button>
+          {msg&&<p className="text-xs text-red-500 text-center mt-2">{msg}</p>}
         </div>
-      );
+      </div>
+    );
 
-      const sorted=[...allUsers].map(u=>({...u,pts:userTotal(u,matches,official)})).sort((a,b)=>b.pts-a.pts);
-      const myPts=userTotal(profile,matches,official);
-      const myRank=sorted.findIndex(u=>u.uid===user.uid)+1;
-      const groups=[...new Set(matches.map(m=>m.group))].sort();
-      const tabs=[["placares","Placares"],["grupos","Grupos"],["acomp","Acomp."],["pred","Previsões"],["rank","Ranking"],["regras","Regras"]];
-      if (isAdmin) tabs.push(["admin","Admin"]);
+    const sorted=[...allUsers].map(u=>({...u,pts:userTotal(u,matches,official)})).sort((a,b)=>b.pts-a.pts);
+    const myPts=userTotal(profile,matches,official);
+    const myRank=sorted.findIndex(u=>u.uid===user.uid)+1;
+    const groups=[...new Set(matches.map(m=>m.group))].sort();
+    const tabs=[["placares","Placares"],["grupos","Grupos"],["acomp","Acomp."],["pred","Previsões"],["rank","Ranking"],["regras","Regras"]];
+    if(isAdmin) tabs.push(["admin","Admin"]);
 
-      return (
-        <div className="min-h-screen bg-gray-50">
-          {/* HEADER */}
-          <header style={{background:"linear-gradient(135deg,#064e3b,#065f46)"}}>
-            <div className="max-w-3xl mx-auto px-4 py-4">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 bg-yellow-400 rounded-xl flex items-center justify-center shadow">
-                    <span className="text-lg">🏆</span>
-                  </div>
+    return (
+      <div className="min-h-screen bg-gray-50">
+        {/* HEADER */}
+        <header style={{background:"linear-gradient(135deg,#064e3b,#065f46)"}}>
+          <div className="max-w-3xl mx-auto px-4 py-4">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-yellow-400 rounded-xl flex items-center justify-center shadow">
+                  <span className="text-lg">🏆</span>
+                </div>
+                <div>
+                  <h1 className="text-white font-bold text-base leading-tight">Bolão HC Copa 2026</h1>
+                  <p className="text-emerald-300 text-xs">por HCmaster</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <p className="text-white text-sm font-semibold">{profile.displayName}</p>
+                  <p className="text-emerald-300 text-xs">{myPts} pts · {myRank}º</p>
+                </div>
+                <button onClick={logout} className="text-xs bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-lg transition">Sair</button>
+              </div>
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              <div className="bg-white/10 rounded-xl p-2 text-center">
+                <p className="text-white font-bold text-lg">{myPts}</p>
+                <p className="text-emerald-300 text-xs">Seus pontos</p>
+              </div>
+              <div className="bg-white/10 rounded-xl p-2 text-center">
+                <p className="text-white font-bold text-lg">{myRank}º</p>
+                <p className="text-emerald-300 text-xs">Posição</p>
+              </div>
+              <div className="bg-white/10 rounded-xl p-2 text-center">
+                <p className="text-white font-bold text-lg">{matches.filter(m=>m.result).length}/{matches.length||72}</p>
+                <p className="text-emerald-300 text-xs">Jogos</p>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* NAV */}
+        <nav className="bg-white border-b border-gray-100 sticky top-0 z-10 shadow-sm">
+          <div className="max-w-3xl mx-auto px-2 flex overflow-x-auto">
+            {tabs.map(([id,lbl])=>(
+              <button key={id} onClick={()=>setTab(id)} className={"px-4 py-3 text-sm font-semibold whitespace-nowrap transition "+(tab===id?"tab-active text-emerald-600":"text-gray-400 hover:text-gray-600")}>
+                {lbl}
+              </button>
+            ))}
+          </div>
+        </nav>
+
+        <main className="max-w-3xl mx-auto px-4 py-5">
+          {msg&&(
+            <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-xl p-3 mb-4 flex justify-between items-center">
+              <span>{msg}</span>
+              <button onClick={()=>setMsg("")} className="text-emerald-400 hover:text-emerald-600 font-bold ml-2">✕</button>
+            </div>
+          )}
+
+          {matches.length===0&&!isAdmin&&(
+            <div className="text-center py-16 text-gray-400">
+              <div className="text-5xl mb-3">⚽</div>
+              <p className="font-medium">Os jogos ainda não foram cadastrados.</p>
+              <p className="text-sm">Volte em breve!</p>
+            </div>
+          )}
+
+          {/* ===== PLACARES ===== */}
+          {tab==="placares" && matches.map(m=>{
+            const bet=(profile.bets||{})[m.id]||{guess:"",changes:0};
+            const locked=isLocked(m.kickoff);
+            const canEdit=!locked&&bet.changes<1;
+            const pts=m.result?betPoints(bet.guess,m.result):null;
+
+            return (
+              <div key={m.id} className="bg-white rounded-2xl shadow-sm mb-3 overflow-hidden border border-gray-100">
+                {/* CABEÇALHO DESTACADO */}
+                <div className="px-4 py-2.5 flex justify-between items-center" style={{background:"linear-gradient(135deg,#064e3b,#065f46)"}}>
                   <div>
-                    <h1 className="text-white font-bold text-base leading-tight">Bolão HC Copa 2026</h1>
-                    <p className="text-emerald-300 text-xs">por HCmaster</p>
+                    <span className="text-white text-xs font-bold">Grupo {m.group}</span>
+                    <span className="text-emerald-300 text-xs"> · Rodada {m.matchday}</span>
+                    <span className="text-emerald-300 text-xs"> · {fmtDate(m.kickoff)} às {fmtTime(m.kickoff)}</span>
                   </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <p className="text-white text-sm font-semibold">{profile.displayName}</p>
-                    <p className="text-emerald-300 text-xs">{myPts} pts · {myRank}º</p>
-                  </div>
-                  <button onClick={logout} className="text-xs bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-lg transition">Sair</button>
-                </div>
-              </div>
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                <div className="bg-white/10 rounded-xl p-2 text-center">
-                  <p className="text-white font-bold text-lg">{myPts}</p>
-                  <p className="text-emerald-300 text-xs">Seus pontos</p>
-                </div>
-                <div className="bg-white/10 rounded-xl p-2 text-center">
-                  <p className="text-white font-bold text-lg">{myRank}º</p>
-                  <p className="text-emerald-300 text-xs">Posição</p>
-                </div>
-                <div className="bg-white/10 rounded-xl p-2 text-center">
-                  <p className="text-white font-bold text-lg">{matches.filter(m=>m.result).length}/{matches.length}</p>
-                  <p className="text-emerald-300 text-xs">Jogos</p>
-                </div>
-              </div>
-            </div>
-          </header>
-
-          {/* NAV */}
-          <nav className="bg-white border-b border-gray-100 sticky top-0 z-10 shadow-sm">
-            <div className="max-w-3xl mx-auto px-2 flex overflow-x-auto">
-              {tabs.map(([id,lbl])=>(
-                <button key={id} onClick={()=>setTab(id)} className={"px-4 py-3 text-sm font-semibold whitespace-nowrap transition "+(tab===id?"tab-active text-emerald-600":"text-gray-400 hover:text-gray-700 border-b-3 border-transparent")}>{lbl}</button>
-              ))}
-            </div>
-          </nav>
-
-          <main className="max-w-3xl mx-auto px-4 py-5">
-            {msg && (
-              <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-xl p-3 mb-4 flex justify-between items-center">
-                <span>{msg}</span>
-                <button onClick={()=>setMsg("")} className="text-emerald-400 hover:text-emerald-600 font-bold ml-2">✕</button>
-              </div>
-            )}
-
-            {matches.length===0&&!isAdmin&&(
-              <div className="text-center py-16 text-gray-400">
-                <div className="text-5xl mb-3">⚽</div>
-                <p className="font-medium">Os jogos ainda não foram cadastrados.</p>
-                <p className="text-sm">Volte em breve!</p>
-              </div>
-            )}
-
-            {/* ===== PLACARES ===== */}
-            {tab==="placares" && matches.map(m=>{
-              const bet=(profile.bets||{})[m.id]||{guess:"",changes:0};
-              const locked=isLocked(m.kickoff);
-              const canEdit=!locked&&bet.changes<1;
-              const pts=m.result?betPoints(bet.guess,m.result):null;
-              const [bg1,bg2]=bet.guess?bet.guess.split("-"):["",""];
-              const [rg1,rg2]=m.result?m.result.split("-"):["",""];
-
-              return (
-                <div key={m.id} className="bg-white rounded-2xl shadow-sm mb-3 overflow-hidden border border-gray-100">
-                  {/* cabeçalho */}
-                  <div className="flex justify-between items-center px-4 py-2 bg-gray-50 border-b border-gray-100">
-                    <span className="text-xs text-gray-400 font-medium">Grupo {m.group} · Rod. {m.matchday} · {fmtDate(m.kickoff)} {fmtTime(m.kickoff)}</span>
-                    {m.result
-                      ? <span className={"text-xs font-bold px-2 py-1 rounded-full "+(pts>0?"bg-emerald-100 text-emerald-700":"bg-gray-100 text-gray-500")}>{pts>0?"+"+pts+" pts":"0 pts"}</span>
-                      : locked
-                        ? <span className="text-xs font-bold px-2 py-1 rounded-full bg-orange-100 text-orange-600">🔒 Fechado</span>
-                        : <span className="text-xs font-bold px-2 py-1 rounded-full bg-yellow-100 text-yellow-600">⏰ Aberto</span>
-                    }
-                  </div>
-
-                  <div className="px-4 py-4">
-                    {/* TIME 1 */}
-                    <div className="flex items-center gap-3 mb-3">
-                      {m.result ? (
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl font-bold ${pts===PTS_EXATO?"bg-emerald-500 text-white":pts===PTS_RESULTADO?"bg-blue-500 text-white":"bg-gray-100 text-gray-700"}`}>{rg1}</div>
-                      ) : canEdit ? (
-                        <input
-                          type="number" min="0" max="20"
-                          defaultValue={bg1}
-                          onBlur={e=>{
-                            const cur=drafts[m.id]||{g1:bg1,g2:bg2};
-                            const nd={...cur,g1:e.target.value};
-                            setDrafts({...drafts,[m.id]:nd});
-                            if (nd.g1!==""&&nd.g2!=="") saveBet(m,nd.g1,nd.g2);
-                          }}
-                          className="w-10 h-10 rounded-xl border-2 border-gray-200 focus:border-emerald-500 text-center text-xl font-bold focus:outline-none"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-xl bg-orange-50 border-2 border-orange-100 flex items-center justify-center text-xl font-bold text-orange-400">{bg1||"–"}</div>
-                      )}
-                      <TeamFlag name={m.team1} />
-                      <span className="font-semibold text-gray-800 flex-1">{tname(m.team1)}</span>
-                    </div>
-
-                    {/* TIME 2 */}
-                    <div className="flex items-center gap-3">
-                      {m.result ? (
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl font-bold ${pts===PTS_EXATO?"bg-emerald-500 text-white":pts===PTS_RESULTADO?"bg-blue-500 text-white":"bg-gray-100 text-gray-700"}`}>{rg2}</div>
-                      ) : canEdit ? (
-                        <input
-                          type="number" min="0" max="20"
-                          defaultValue={bg2}
-                          onBlur={e=>{
-                            const cur=drafts[m.id]||{g1:bg1,g2:bg2};
-                            const nd={...cur,g2:e.target.value};
-                            setDrafts({...drafts,[m.id]:nd});
-                            if (nd.g1!==""&&nd.g2!=="") saveBet(m,nd.g1,nd.g2);
-                          }}
-                          className="w-10 h-10 rounded-xl border-2 border-gray-200 focus:border-emerald-500 text-center text-xl font-bold focus:outline-none"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-xl bg-orange-50 border-2 border-orange-100 flex items-center justify-center text-xl font-bold text-orange-400">{bg2||"–"}</div>
-                      )}
-                      <TeamFlag name={m.team2} />
-                      <span className="font-semibold text-gray-800 flex-1">{tname(m.team2)}</span>
-                    </div>
-
-                    {/* feedback */}
-                    {m.result && (
-                      <div className="mt-3 text-xs text-gray-500 flex justify-between">
-                        <span>Sua aposta: <b>{bet.guess||"—"}</b></span>
-                        <span>{pts===PTS_EXATO?"🎯 Placar exato!":pts===PTS_RESULTADO?"📌 Resultado certo":"❌ Não pontuou"}</span>
-                      </div>
-                    )}
-                    {canEdit&&bet.guess&&<p className="mt-2 text-xs text-amber-500">⚠️ Você ainda pode alterar 1 vez</p>}
-                    {!m.result&&!canEdit&&bet.changes>=1&&<p className="mt-2 text-xs text-orange-500">🔒 Alteração já utilizada</p>}
-
-                    {/* admin: lançar resultado */}
-                    {isAdmin&&(
-                      <div className="mt-3 flex gap-2 bg-purple-50 rounded-xl p-2 border border-purple-100">
-                        <input value={resultDrafts[m.id]!==undefined?resultDrafts[m.id]:(m.result||"")} onChange={e=>setResultDrafts({...resultDrafts,[m.id]:e.target.value})} placeholder="2-1" className="flex-1 px-3 py-1.5 text-center border border-purple-200 rounded-lg text-sm font-bold focus:outline-none focus:border-purple-400" />
-                        <button onClick={()=>saveResult(m)} className="bg-purple-600 hover:bg-purple-700 text-white text-sm px-4 rounded-lg font-medium">Lançar</button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* ===== GRUPOS ===== */}
-            {tab==="grupos" && (
-              <div className="space-y-6">
-                {groups.map(g=>{
-                  const gMatches=matches.filter(m=>m.group===g);
-                  const standings=calcStandings(gMatches);
-                  const round=groupRounds[g]||"1";
-                  const roundMatches=gMatches.filter(m=>m.matchday===round);
-
-                  return (
-                    <div key={g} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                      <div className="px-4 py-3 flex items-center" style={{background:"linear-gradient(135deg,#064e3b,#065f46)"}}>
-                        <span className="text-white font-bold text-base">Grupo {g}</span>
-                      </div>
-
-                      <div className="flex flex-col md:flex-row">
-                        {/* Tabela de classificação */}
-                        <div className="flex-1 overflow-x-auto">
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className="text-xs text-gray-400 bg-gray-50">
-                                <th className="px-3 py-2 text-left font-medium">#</th>
-                                <th className="px-3 py-2 text-left font-medium">Time</th>
-                                <th className="px-2 py-2 text-center font-medium">J</th>
-                                <th className="px-2 py-2 text-center font-medium">V</th>
-                                <th className="px-2 py-2 text-center font-medium">E</th>
-                                <th className="px-2 py-2 text-center font-medium">D</th>
-                                <th className="px-2 py-2 text-center font-medium">SG</th>
-                                <th className="px-2 py-2 text-center font-bold text-emerald-600">P</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {standings.map((s,i)=>(
-                                <tr key={s.name} className={"border-t border-gray-50 "+(i<2?"bg-emerald-50/50":"")}>
-                                  <td className="px-3 py-2">
-                                    <span className={"w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center "+(i<2?"bg-emerald-500 text-white":"bg-gray-200 text-gray-500")}>{i+1}</span>
-                                  </td>
-                                  <td className="px-3 py-2">
-                                    <div className="flex items-center gap-2">
-                                      <TeamFlag name={s.name} size="sm" />
-                                      <span className="font-medium text-gray-800 text-xs">{tname(s.name)}</span>
-                                    </div>
-                                  </td>
-                                  <td className="px-2 py-2 text-center text-gray-500 text-xs">{s.j}</td>
-                                  <td className="px-2 py-2 text-center text-gray-500 text-xs">{s.v}</td>
-                                  <td className="px-2 py-2 text-center text-gray-500 text-xs">{s.e}</td>
-                                  <td className="px-2 py-2 text-center text-gray-500 text-xs">{s.d}</td>
-                                  <td className="px-2 py-2 text-center text-gray-500 text-xs">{s.sg>0?"+"+s.sg:s.sg}</td>
-                                  <td className="px-2 py-2 text-center font-bold text-emerald-600 text-sm">{s.pts}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-
-                        {/* Divisor */}
-                        <div className="hidden md:block w-px bg-gray-100 my-2"></div>
-                        <div className="md:hidden h-px bg-gray-100 mx-4"></div>
-
-                        {/* Jogos por rodada */}
-                        <div className="md:w-56 p-3">
-                          <div className="flex items-center justify-between mb-3">
-                            <button onClick={()=>setGroupRounds({...groupRounds,[g]:String(Math.max(1,parseInt(round)-1))})} disabled={round==="1"} className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-30 flex items-center justify-center text-gray-600 font-bold transition">‹</button>
-                            <span className="text-xs font-bold text-gray-600">Rodada {round}</span>
-                            <button onClick={()=>setGroupRounds({...groupRounds,[g]:String(Math.min(3,parseInt(round)+1))})} disabled={round==="3"} className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-30 flex items-center justify-center text-gray-600 font-bold transition">›</button>
-                          </div>
-                          <div className="space-y-2">
-                            {roundMatches.map(m=>{
-                              const t1=tname(m.team1),t2=tname(m.team2);
-                              return (
-                                <div key={m.id} className="bg-gray-50 rounded-xl p-2">
-                                  <div className="flex items-center justify-between gap-1">
-                                    <div className="flex items-center gap-1 flex-1 min-w-0">
-                                      <TeamFlag name={m.team1} size="sm" />
-                                      <span className="text-xs font-medium text-gray-700 truncate">{t1}</span>
-                                    </div>
-                                    <div className="shrink-0 px-2">
-                                      {m.result
-                                        ? <span className="font-bold text-sm text-emerald-600">{m.result.replace("-"," - ")}</span>
-                                        : <span className="text-xs text-gray-400 whitespace-nowrap">{fmtTime(m.kickoff)}</span>
-                                      }
-                                    </div>
-                                    <div className="flex items-center gap-1 flex-1 min-w-0 justify-end">
-                                      <span className="text-xs font-medium text-gray-700 truncate">{t2}</span>
-                                      <TeamFlag name={m.team2} size="sm" />
-                                    </div>
-                                  </div>
-                                  <p className="text-xs text-gray-400 text-center mt-1">{fmtDate(m.kickoff)}</p>
-                                  {/* admin: editar nome do time */}
-                                  {isAdmin&&(
-                                    <div className="flex gap-1 mt-1">
-                                      <button onClick={()=>setEditingTeam({matchId:m.id,field:"team1",value:m.team1})} className="text-xs text-purple-400 hover:text-purple-600">✏️ T1</button>
-                                      <button onClick={()=>setEditingTeam({matchId:m.id,field:"team2",value:m.team2})} className="text-xs text-purple-400 hover:text-purple-600">✏️ T2</button>
-                                    </div>
-                                  )}
-                                  {isAdmin&&editingTeam&&editingTeam.matchId===m.id&&(
-                                    <div className="mt-2 flex gap-1">
-                                      <input value={editingTeam.value} onChange={e=>setEditingTeam({...editingTeam,value:e.target.value})} className="flex-1 text-xs px-2 py-1 border rounded" autoFocus />
-                                      <button onClick={()=>saveTeamName(editingTeam.matchId,editingTeam.field,editingTeam.value)} className="bg-purple-600 text-white text-xs px-2 rounded">OK</button>
-                                      <button onClick={()=>setEditingTeam(null)} className="bg-gray-200 text-xs px-2 rounded">✕</button>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* ===== ACOMPANHAMENTO ===== */}
-            {tab==="acomp" && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    {n:myPts,l:"Seus Pontos",c:"#10b981"},
-                    {n:myRank+"º",l:"Posição",c:"#8b5cf6"},
-                    {n:Object.values(profile.bets||{}).filter(b=>b.guess).length,l:"Apostas feitas",c:"#3b82f6"},
-                  ].map((s,i)=>(
-                    <div key={i} className="bg-white rounded-2xl p-4 text-center shadow-sm border border-gray-100">
-                      <p className="text-2xl font-bold" style={{color:s.c}}>{s.n}</p>
-                      <p className="text-xs text-gray-400 mt-1">{s.l}</p>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                  <div className="px-4 py-3 border-b border-gray-100"><h3 className="font-semibold text-gray-700 text-sm">⏰ Próximos jogos</h3></div>
-                  <div className="divide-y divide-gray-50">
-                    {matches.filter(m=>!m.result&&!isLocked(m.kickoff)).slice(0,5).map(m=>{
-                      const b=(profile.bets||{})[m.id];
-                      return (
-                        <div key={m.id} className="flex items-center justify-between px-4 py-3 gap-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 text-sm font-medium text-gray-800">
-                              <TeamFlag name={m.team1} size="sm"/>
-                              <span className="truncate">{tname(m.team1)}</span>
-                              <span className="text-gray-300">×</span>
-                              <span className="truncate">{tname(m.team2)}</span>
-                              <TeamFlag name={m.team2} size="sm"/>
-                            </div>
-                            <p className="text-xs text-gray-400 mt-0.5">{fmtDate(m.kickoff)} às {fmtTime(m.kickoff)}</p>
-                          </div>
-                          <span className={"text-xs font-bold px-2 py-1 rounded-lg whitespace-nowrap "+(b?.guess?"bg-emerald-100 text-emerald-700":"bg-gray-100 text-gray-400")}>{b?.guess||"sem aposta"}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                  <div className="px-4 py-3 border-b border-gray-100"><h3 className="font-semibold text-gray-700 text-sm">✅ Resultados recentes</h3></div>
-                  <div className="divide-y divide-gray-50">
-                    {matches.filter(m=>m.result).slice(-5).reverse().map(m=>{
-                      const b=(profile.bets||{})[m.id]||{};
-                      const p=betPoints(b.guess,m.result);
-                      return (
-                        <div key={m.id} className="flex items-center justify-between px-4 py-3 gap-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 text-sm font-medium text-gray-800">
-                              <TeamFlag name={m.team1} size="sm"/>
-                              <span className="truncate">{tname(m.team1)}</span>
-                              <span className="font-bold text-gray-600">{m.result.replace("-"," - ")}</span>
-                              <span className="truncate">{tname(m.team2)}</span>
-                              <TeamFlag name={m.team2} size="sm"/>
-                            </div>
-                            <p className="text-xs text-gray-400 mt-0.5">Sua aposta: <b>{b.guess||"—"}</b></p>
-                          </div>
-                          <span className={"text-sm font-bold "+(p>0?"text-emerald-600":"text-red-400")}>{p>0?"+"+p:"0"}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ===== PREVISÕES ===== */}
-            {tab==="pred" && (
-              <div>
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-lg font-bold text-gray-900">🌟 Previsões Finais</h2>
-                  {deadlinePassed
-                    ? <span className="bg-gray-100 text-gray-500 text-sm font-semibold px-3 py-2 rounded-xl">🔒 Encerradas</span>
-                    : <button onClick={submitPred} className="bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold px-4 py-2 rounded-xl transition">📤 {profile.predSubmitted?"Atualizar":"Enviar"}</button>
+                  {m.result
+                    ? <span className={"text-xs font-bold px-2 py-1 rounded-full "+(pts>0?"bg-emerald-400 text-white":"bg-white/20 text-white")}>{pts>0?"+"+pts+" pts":"0 pts"}</span>
+                    : locked
+                      ? <span className="text-xs font-bold px-2 py-1 rounded-full bg-orange-400/80 text-white">🔒 Fechado</span>
+                      : <span className="text-xs font-bold px-2 py-1 rounded-full bg-yellow-400/80 text-white">⏰ Aberto</span>
                   }
                 </div>
-                <div className={"text-xs rounded-xl p-3 mb-4 "+(profile.predSubmitted?"bg-emerald-50 text-emerald-700 border border-emerald-100":"bg-amber-50 text-amber-700 border border-amber-100")}>
-                  Apostar/alterar até <b>20/06/2026 23h59 (SP)</b> · {deadlinePassed?"prazo encerrado":"faltam "+daysLeft+" dias"} · cada campo pode ser alterado 1 vez após enviar.
+
+                <div className="px-4 py-4">
+                  {m.result ? (
+                    <>
+                      <ResultRow m={m} pts={pts} />
+                      <div className="mt-3 flex justify-between text-xs text-gray-400 border-t border-gray-50 pt-2">
+                        <span>Sua aposta: <b className={pts>0?"text-emerald-600":"text-red-400"}>{bet.guess||"—"}</b></span>
+                        <span>{pts===PTS_EXATO?"🎯 Placar exato!":pts===PTS_RESULTADO?"📌 Resultado certo":"❌ Não pontuou"}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <BetRow m={m} bet={bet} canEdit={canEdit} onSave={(g1,g2)=>saveBet(m,g1,g2)} />
+                  )}
+                  {!m.result&&!canEdit&&bet.changes>=1&&<p className="mt-2 text-xs text-orange-400">🔒 Alteração já utilizada</p>}
+
+                  {isAdmin&&(
+                    <div className="mt-3 flex gap-2 bg-purple-50 rounded-xl p-2 border border-purple-100">
+                      <input value={resultDrafts[m.id]!==undefined?resultDrafts[m.id]:(m.result||"")} onChange={e=>setResultDrafts({...resultDrafts,[m.id]:e.target.value})} placeholder="2-1" className="flex-1 px-3 py-1.5 text-center border border-purple-200 rounded-lg text-sm font-bold focus:outline-none focus:border-purple-400" />
+                      <button onClick={()=>saveResult(m)} className="bg-purple-600 hover:bg-purple-700 text-white text-sm px-4 rounded-lg font-medium">Lançar</button>
+                    </div>
+                  )}
                 </div>
-                <div className="space-y-2">
-                  {PRED_LABELS.map(p=>{
-                    const used=profile.predSubmitted&&(profile.predChanges||{})[p.key]>=1;
-                    return (
-                      <div key={p.key} className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="font-semibold text-gray-800">{p.label}</span>
-                          <span className="text-xs bg-emerald-100 text-emerald-600 font-bold px-2 py-1 rounded-lg">+{PRED_PTS[p.key]} pts</span>
+              </div>
+            );
+          })}
+
+          {/* ===== GRUPOS ===== */}
+          {tab==="grupos" && (
+            <div className="space-y-6">
+              {groups.map(g=>{
+                const gMatches=matches.filter(m=>m.group===g);
+                const standings=calcStandings(gMatches);
+                const round=groupRounds[g]||"1";
+                const roundMatches=gMatches.filter(m=>m.matchday===round);
+
+                return (
+                  <div key={g} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    {/* cabeçalho do grupo */}
+                    <div className="px-4 py-2.5 flex items-center" style={{background:"linear-gradient(135deg,#064e3b,#065f46)"}}>
+                      <span className="text-white font-bold">Grupo {g}</span>
+                    </div>
+
+                    <div className="flex flex-col md:flex-row">
+                      {/* Tabela de classificação */}
+                      <div className="flex-1 overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="bg-gray-50 text-xs text-gray-400">
+                              <th className="px-3 py-2 text-left font-medium">#</th>
+                              <th className="px-3 py-2 text-left font-medium">Time</th>
+                              <th className="px-2 py-2 text-center font-medium">J</th>
+                              <th className="px-2 py-2 text-center font-medium">V</th>
+                              <th className="px-2 py-2 text-center font-medium">E</th>
+                              <th className="px-2 py-2 text-center font-medium">D</th>
+                              <th className="px-2 py-2 text-center font-medium">SG</th>
+                              <th className="px-2 py-2 text-center font-bold text-emerald-600">P</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {standings.map((s,i)=>(
+                              <tr key={s.name} className={"border-t border-gray-50 "+(i<2?"bg-emerald-50/60":"")}>
+                                <td className="px-3 py-2">
+                                  <span className={"w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center "+(i<2?"bg-emerald-500 text-white":"bg-gray-200 text-gray-500")}>{i+1}</span>
+                                </td>
+                                <td className="px-3 py-2">
+                                  <div className="flex items-center gap-2">
+                                    <Flag name={s.name} size="sm" />
+                                    <span className="font-medium text-gray-800 text-xs">{tname(s.name)}</span>
+                                  </div>
+                                </td>
+                                <td className="px-2 py-2 text-center text-gray-500 text-xs">{s.j}</td>
+                                <td className="px-2 py-2 text-center text-gray-500 text-xs">{s.v}</td>
+                                <td className="px-2 py-2 text-center text-gray-500 text-xs">{s.e}</td>
+                                <td className="px-2 py-2 text-center text-gray-500 text-xs">{s.d}</td>
+                                <td className="px-2 py-2 text-center text-gray-500 text-xs">{s.sg>0?"+"+s.sg:s.sg}</td>
+                                <td className="px-2 py-2 text-center font-bold text-emerald-600 text-sm">{s.pts}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* divisor */}
+                      <div className="hidden md:block w-px bg-gray-100 my-2"></div>
+                      <div className="md:hidden h-px bg-gray-100 mx-4"></div>
+
+                      {/* Jogos por rodada */}
+                      <div className="md:w-60 p-3">
+                        {/* nav rodada */}
+                        <div className="flex items-center justify-between mb-3">
+                          <button onClick={()=>setGroupRounds({...groupRounds,[g]:String(Math.max(1,parseInt(round)-1))})} disabled={round==="1"} className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-30 flex items-center justify-center text-gray-600 font-bold text-lg transition">‹</button>
+                          <span className="text-xs font-bold text-gray-600">Rodada {round} de 3</span>
+                          <button onClick={()=>setGroupRounds({...groupRounds,[g]:String(Math.min(3,parseInt(round)+1))})} disabled={round==="3"} className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-30 flex items-center justify-center text-gray-600 font-bold text-lg transition">›</button>
                         </div>
-                        <input value={(profile.predictions||{})[p.key]||""} onChange={e=>updatePred(p.key,e.target.value)} disabled={used||deadlinePassed} placeholder="Digite o nome..." className={"w-full px-3 py-2 border-2 rounded-xl text-sm font-medium focus:outline-none "+(used||deadlinePassed?"bg-gray-50 border-gray-100 text-gray-400 cursor-not-allowed":"border-gray-200 focus:border-emerald-400")} />
-                        {used&&<p className="text-xs text-red-400 mt-1">🔒 Alteração já utilizada</p>}
+
+                        {roundMatches.length===0 && (
+                          <p className="text-xs text-gray-400 text-center py-4">Nenhum jogo encontrado para esta rodada.</p>
+                        )}
+
+                        <div className="space-y-2">
+                          {roundMatches.map(m=>{
+                            return (
+                              <div key={m.id} className="bg-gray-50 rounded-xl p-2.5">
+                                {/* time 1 */}
+                                <div className="flex items-center gap-1.5 mb-1">
+                                  <Flag name={m.team1} size="sm" />
+                                  <span className="text-xs font-medium text-gray-700 flex-1 truncate">{tname(m.team1)}</span>
+                                  {m.result
+                                    ? <span className="font-bold text-sm text-emerald-600 w-5 text-right">{m.result.split("-")[0]}</span>
+                                    : <span className="text-xs text-gray-400 w-12 text-right">{fmtTime(m.kickoff)}</span>
+                                  }
+                                </div>
+                                {/* time 2 */}
+                                <div className="flex items-center gap-1.5">
+                                  <Flag name={m.team2} size="sm" />
+                                  <span className="text-xs font-medium text-gray-700 flex-1 truncate">{tname(m.team2)}</span>
+                                  {m.result
+                                    ? <span className="font-bold text-sm text-emerald-600 w-5 text-right">{m.result.split("-")[1]}</span>
+                                    : <span className="text-xs text-gray-400 w-12 text-right">{fmtDate(m.kickoff)}</span>
+                                  }
+                                </div>
+                                {/* admin: editar time */}
+                                {isAdmin&&(
+                                  <div className="flex gap-1 mt-1.5">
+                                    <button onClick={()=>setEditingTeam({matchId:m.id,field:"team1",value:m.team1})} className="text-xs text-purple-400 hover:text-purple-600">✏️ T1</button>
+                                    <button onClick={()=>setEditingTeam({matchId:m.id,field:"team2",value:m.team2})} className="text-xs text-purple-400 hover:text-purple-600">✏️ T2</button>
+                                  </div>
+                                )}
+                                {isAdmin&&editingTeam&&editingTeam.matchId===m.id&&(
+                                  <div className="mt-2 flex gap-1">
+                                    <input value={editingTeam.value} onChange={e=>setEditingTeam({...editingTeam,value:e.target.value})} className="flex-1 text-xs px-2 py-1 border rounded" autoFocus />
+                                    <button onClick={()=>saveTeamName(editingTeam.matchId,editingTeam.field,editingTeam.value)} className="bg-purple-600 text-white text-xs px-2 rounded">OK</button>
+                                    <button onClick={()=>setEditingTeam(null)} className="bg-gray-200 text-xs px-2 rounded">✕</button>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ===== ACOMPANHAMENTO ===== */}
+          {tab==="acomp"&&(
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  {n:myPts,l:"Seus Pontos",c:"#10b981"},
+                  {n:myRank+"º",l:"Posição",c:"#8b5cf6"},
+                  {n:Object.values(profile.bets||{}).filter(b=>b.guess).length,l:"Apostas feitas",c:"#3b82f6"},
+                ].map((s,i)=>(
+                  <div key={i} className="bg-white rounded-2xl p-4 text-center shadow-sm border border-gray-100">
+                    <p className="text-2xl font-bold" style={{color:s.c}}>{s.n}</p>
+                    <p className="text-xs text-gray-400 mt-1">{s.l}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-50"><h3 className="font-semibold text-gray-700 text-sm">⏰ Próximos jogos</h3></div>
+                <div className="divide-y divide-gray-50">
+                  {matches.filter(m=>!m.result&&!isLocked(m.kickoff)).slice(0,5).map(m=>{
+                    const b=(profile.bets||{})[m.id];
+                    return (
+                      <div key={m.id} className="flex items-center justify-between px-4 py-3 gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 text-sm font-medium text-gray-800 flex-wrap">
+                            <Flag name={m.team1} size="sm"/><span className="truncate">{tname(m.team1)}</span>
+                            <span className="text-gray-300">×</span>
+                            <span className="truncate">{tname(m.team2)}</span><Flag name={m.team2} size="sm"/>
+                          </div>
+                          <p className="text-xs text-gray-400 mt-0.5">{fmtDate(m.kickoff)} às {fmtTime(m.kickoff)}</p>
+                        </div>
+                        <span className={"text-xs font-bold px-2 py-1 rounded-lg whitespace-nowrap "+(b?.guess?"bg-emerald-100 text-emerald-700":"bg-gray-100 text-gray-400")}>{b?.guess||"sem aposta"}</span>
                       </div>
                     );
                   })}
                 </div>
               </div>
-            )}
-
-            {/* ===== RANKING ===== */}
-            {tab==="rank" && (
-              <div>
-                <h2 className="text-lg font-bold text-gray-900 mb-4">🏆 Ranking Geral</h2>
-                <div className="space-y-2">
-                  {sorted.map((u,i)=>(
-                    <div key={u.uid} className={"flex items-center justify-between rounded-2xl p-3 shadow-sm border "+(u.uid===user.uid?"bg-emerald-50 border-emerald-200":"bg-white border-gray-100")}>
-                      <div className="flex items-center gap-3">
-                        <div className={"w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold "+(i===0?"bg-yellow-400 text-white":i===1?"bg-gray-300 text-white":i===2?"bg-orange-400 text-white":"bg-gray-100 text-gray-500")}>{i+1}</div>
-                        <span className="font-semibold text-gray-800 text-sm">{u.displayName}{u.uid===user.uid&&<span className="text-xs text-emerald-500 ml-1">(você)</span>}</span>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-50"><h3 className="font-semibold text-gray-700 text-sm">✅ Resultados recentes</h3></div>
+                <div className="divide-y divide-gray-50">
+                  {matches.filter(m=>m.result).slice(-5).reverse().map(m=>{
+                    const b=(profile.bets||{})[m.id]||{};
+                    const p=betPoints(b.guess,m.result);
+                    return (
+                      <div key={m.id} className="flex items-center justify-between px-4 py-3 gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 text-sm font-medium text-gray-800 flex-wrap">
+                            <Flag name={m.team1} size="sm"/><span>{tname(m.team1)}</span>
+                            <span className="font-bold text-gray-600">{m.result.replace("-"," - ")}</span>
+                            <span>{tname(m.team2)}</span><Flag name={m.team2} size="sm"/>
+                          </div>
+                          <p className="text-xs text-gray-400 mt-0.5">Sua aposta: <b>{b.guess||"—"}</b></p>
+                        </div>
+                        <span className={"text-sm font-bold "+(p>0?"text-emerald-600":"text-red-400")}>{p>0?"+"+p:"0"}</span>
                       </div>
-                      <span className="font-bold text-emerald-600">{u.pts} pts</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
-            {/* ===== REGRAS ===== */}
-            {tab==="regras" && (
-              <div className="space-y-3">
-                {[
-                  {t:"ℹ️ Geral",items:["🏆 Copa do Mundo 2026 — bolão individual","👥 Até 50 participantes · sem prêmios","🕐 Pode entrar durante a Copa (começa com 0 pts)"]},
-                  {t:"📊 Placares",items:["✅ Aposta até 10 min antes de cada jogo (horário SP)","🔄 Alteração: 1 vez por jogo","🎯 Placar exato +15 pts · 📌 Resultado certo +10 pts"]},
-                  {t:"🌟 Previsões",items:["📅 Até 20/06/2026 às 23h59 (SP)","🔄 1 alteração por campo após enviar","Campeão +50 · Vice +30 · 3º +20 · Artilheiro +25 · Melhor +40"]},
-                ].map(s=>(
-                  <div key={s.t} className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
-                    <h3 className="font-bold text-gray-800 mb-2 text-sm">{s.t}</h3>
-                    <ul className="space-y-1">{s.items.map((it,i)=><li key={i} className="text-xs text-gray-600">{it}</li>)}</ul>
+          {/* ===== PREVISÕES ===== */}
+          {tab==="pred"&&(
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-bold text-gray-900">🌟 Previsões Finais</h2>
+                {deadlinePassed
+                  ? <span className="bg-gray-100 text-gray-500 text-sm font-semibold px-3 py-2 rounded-xl">🔒 Encerradas</span>
+                  : <button onClick={submitPred} className="bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold px-4 py-2 rounded-xl transition">📤 {profile.predSubmitted?"Atualizar":"Enviar"}</button>
+                }
+              </div>
+              <div className={"text-xs rounded-xl p-3 mb-4 "+(profile.predSubmitted?"bg-emerald-50 text-emerald-700 border border-emerald-100":"bg-amber-50 text-amber-700 border border-amber-100")}>
+                Apostar/alterar até <b>20/06/2026 23h59 (SP)</b> · {deadlinePassed?"prazo encerrado":"faltam "+daysLeft+" dias"} · cada campo pode ser alterado 1 vez após enviar.
+              </div>
+              <div className="space-y-2">
+                {PRED_LABELS.map(p=>{
+                  const used=profile.predSubmitted&&(profile.predChanges||{})[p.key]>=1;
+                  return (
+                    <div key={p.key} className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="font-semibold text-gray-800">{p.label}</span>
+                        <span className="text-xs bg-emerald-100 text-emerald-600 font-bold px-2 py-1 rounded-lg">+{PRED_PTS[p.key]} pts</span>
+                      </div>
+                      <input value={(profile.predictions||{})[p.key]||""} onChange={e=>updatePred(p.key,e.target.value)} disabled={used||deadlinePassed} placeholder="Digite o nome..." className={"w-full px-3 py-2 border-2 rounded-xl text-sm font-medium focus:outline-none "+(used||deadlinePassed?"bg-gray-50 border-gray-100 text-gray-400 cursor-not-allowed":"border-gray-200 focus:border-emerald-400")} />
+                      {used&&<p className="text-xs text-red-400 mt-1">🔒 Alteração já utilizada</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ===== RANKING ===== */}
+          {tab==="rank"&&(
+            <div>
+              <h2 className="text-lg font-bold text-gray-900 mb-4">🏆 Ranking Geral</h2>
+              <div className="space-y-2">
+                {sorted.map((u,i)=>(
+                  <div key={u.uid} className={"flex items-center justify-between rounded-2xl p-3 shadow-sm border "+(u.uid===user.uid?"bg-emerald-50 border-emerald-200":"bg-white border-gray-100")}>
+                    <div className="flex items-center gap-3">
+                      <div className={"w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold "+(i===0?"bg-yellow-400 text-white":i===1?"bg-gray-300 text-gray-700":i===2?"bg-orange-400 text-white":"bg-gray-100 text-gray-500")}>{i+1}</div>
+                      <span className="font-semibold text-gray-800 text-sm">{u.displayName}{u.uid===user.uid&&<span className="text-xs text-emerald-500 ml-1">(você)</span>}</span>
+                    </div>
+                    <span className="font-bold text-emerald-600 text-sm">{u.pts} pts</span>
                   </div>
                 ))}
-                <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
-                  <h3 className="font-bold text-gray-800 mb-3 text-sm">💬 Dúvidas?</h3>
-                  <a href="https://wa.me/5519981719881" target="_blank" className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold py-2.5 px-4 rounded-xl transition text-sm w-fit">
-                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                    (19) 98171-9881
-                  </a>
-                  <p className="text-xs text-gray-400 mt-3">Criado por HCmaster</p>
-                </div>
               </div>
-            )}
+            </div>
+          )}
 
-            {/* ===== ADMIN ===== */}
-            {tab==="admin"&&isAdmin&&(
-              <div className="space-y-4">
-                <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
-                  <h3 className="font-bold text-gray-800 mb-2">⚙️ Cadastro dos jogos</h3>
-                  <p className="text-sm text-gray-500 mb-3">Jogos no banco: <b>{matches.length}</b>. Clique para cadastrar os 72 jogos (faça só uma vez).</p>
-                  <button onClick={seed} className="bg-purple-600 hover:bg-purple-700 text-white font-bold px-4 py-2.5 rounded-xl transition">Semear 72 jogos</button>
+          {/* ===== REGRAS ===== */}
+          {tab==="regras"&&(
+            <div className="space-y-3">
+              {[
+                {t:"ℹ️ Geral",items:["🏆 Copa do Mundo 2026 — bolão individual","👥 Até 50 participantes · sem prêmios","🕐 Pode entrar durante a Copa (começa com 0 pts)"]},
+                {t:"📊 Placares",items:["✅ Aposta até 10 min antes de cada jogo (horário SP)","🔄 Alteração: 1 vez por jogo","🎯 Placar exato +15 pts · 📌 Resultado certo +10 pts"]},
+                {t:"🌟 Previsões",items:["📅 Até 20/06/2026 às 23h59 (SP)","🔄 1 alteração por campo após enviar","Campeão +50 · Vice +30 · 3º +20 · Artilheiro +25 · Melhor +40"]},
+              ].map(s=>(
+                <div key={s.t} className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
+                  <h3 className="font-bold text-gray-800 mb-2 text-sm">{s.t}</h3>
+                  <ul className="space-y-1">{s.items.map((it,i)=><li key={i} className="text-xs text-gray-600">{it}</li>)}</ul>
                 </div>
-                <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
-                  <h3 className="font-bold text-gray-800 mb-1">✏️ Renomear times de repescagem</h3>
-                  <p className="text-xs text-gray-500">Vá na aba <b>Grupos</b> e clique no ✏️ ao lado do time para renomear.</p>
-                </div>
-                <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
-                  <h3 className="font-bold text-gray-800 mb-2">🏅 Resultados finais (previsões)</h3>
-                  <p className="text-xs text-gray-500 mb-3">Preencha ao fim da Copa. Salva ao clicar fora do campo.</p>
-                  {PRED_LABELS.map(p=>(
-                    <div key={p.key} className="flex items-center gap-2 mb-2">
-                      <span className="text-xs text-gray-600 w-36">{p.label}</span>
-                      <input defaultValue={(official||{})[p.key]||""} onBlur={e=>saveOfficial(p.key,e.target.value)} placeholder="resposta oficial" className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-emerald-400" />
-                    </div>
-                  ))}
-                </div>
-                <p className="text-xs text-gray-400">💡 Para lançar placares, use o campo roxo na aba <b>Placares</b>.</p>
+              ))}
+              <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
+                <h3 className="font-bold text-gray-800 mb-3 text-sm">💬 Dúvidas?</h3>
+                <a href="https://wa.me/5519981719881" target="_blank" className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold py-2.5 px-4 rounded-xl transition text-sm w-fit">
+                  <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                  (19) 98171-9881
+                </a>
+                <p className="text-xs text-gray-400 mt-3">Criado por HCmaster</p>
               </div>
-            )}
-          </main>
+            </div>
+          )}
 
-          <footer className="text-center text-xs text-gray-400 py-6 border-t border-gray-100 mt-4">
-            ⚽ Bolão HC Copa 2026 · HCmaster · <a href="https://wa.me/5519981719881" className="text-emerald-500 hover:underline">WhatsApp</a>
-          </footer>
-        </div>
-      );
-    }
+          {/* ===== ADMIN ===== */}
+          {tab==="admin"&&isAdmin&&(
+            <div className="space-y-4">
+              <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
+                <h3 className="font-bold text-gray-800 mb-2">⚙️ Cadastro dos jogos</h3>
+                <p className="text-sm text-gray-500 mb-3">Jogos no banco: <b>{matches.length}</b>. Clique para cadastrar os 72 jogos (faça só uma vez).</p>
+                <button onClick={seed} className="bg-purple-600 hover:bg-purple-700 text-white font-bold px-4 py-2.5 rounded-xl transition">Semear 72 jogos</button>
+              </div>
+              <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
+                <h3 className="font-bold text-gray-800 mb-1">✏️ Renomear times de repescagem</h3>
+                <p className="text-xs text-gray-500">Vá na aba <b>Grupos</b> e clique no ✏️ ao lado do time.</p>
+              </div>
+              <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
+                <h3 className="font-bold text-gray-800 mb-2">🏅 Resultados finais (previsões)</h3>
+                <p className="text-xs text-gray-500 mb-3">Preencha ao fim da Copa. Salva ao clicar fora.</p>
+                {PRED_LABELS.map(p=>(
+                  <div key={p.key} className="flex items-center gap-2 mb-2">
+                    <span className="text-xs text-gray-600 w-36">{p.label}</span>
+                    <input defaultValue={(official||{})[p.key]||""} onBlur={e=>saveOfficial(p.key,e.target.value)} placeholder="resposta oficial" className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-emerald-400" />
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-gray-400">💡 Para lançar placares use o campo roxo na aba <b>Placares</b>.</p>
+            </div>
+          )}
+        </main>
 
-    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
-  </script>
+        <footer className="text-center text-xs text-gray-400 py-6 border-t border-gray-100 mt-4">
+          ⚽ Bolão HC Copa 2026 · HCmaster · <a href="https://wa.me/5519981719881" className="text-emerald-500 hover:underline">WhatsApp</a>
+        </footer>
+      </div>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
 </body>
 </html>
