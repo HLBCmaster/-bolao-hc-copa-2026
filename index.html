@@ -173,6 +173,7 @@
       const [user, setUser] = useState(null);
       const [profile, setProfile] = useState(null);
       const [authLoading, setAuthLoading] = useState(true);
+      const [loginInProgress, setLoginInProgress] = useState(false);
       const [needName, setNeedName] = useState(false);
       const [nameInput, setNameInput] = useState("");
       const [matches, setMatches] = useState([]);
@@ -232,8 +233,11 @@
 
       const login = async () => {
         try {
+          setLoginInProgress(true);
           await auth.signInWithPopup(provider);
+          // onAuthStateChanged vai cuidar do resto
         } catch (e) {
+          setLoginInProgress(false);
           setMsg("Erro no login: " + e.message);
         }
       };
