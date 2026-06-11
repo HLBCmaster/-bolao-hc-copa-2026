@@ -190,6 +190,13 @@
 
       // ---- AUTH ----
       useEffect(() => {
+        // Captura o retorno do redirect do Google
+        auth.getRedirectResult().catch(e => {
+          if (e.code !== 'auth/no-auth-event') {
+            setMsg("Erro no login: " + e.message);
+          }
+        });
+
         const unsub = auth.onAuthStateChanged(async (u) => {
           if (u) {
             setUser(u);
@@ -211,6 +218,7 @@
             setProfile(null);
             setNeedName(false);
           }
+          setLoginInProgress(false);
           setAuthLoading(false);
         });
         return unsub;
@@ -234,8 +242,7 @@
       const login = async () => {
         try {
           setLoginInProgress(true);
-          await auth.signInWithPopup(provider);
-          // onAuthStateChanged vai cuidar do resto
+          await auth.signInWithRedirect(provider);
         } catch (e) {
           setLoginInProgress(false);
           setMsg("Erro no login: " + e.message);
@@ -319,7 +326,7 @@
         }
       };
 
-      if (authLoading) return <Center><div className="text-white text-center"><div className="text-5xl animate-bounce">🏆</div><p className="mt-3 font-bold">Carregando...</p></div></Center>;
+      if (authLoading || loginInProgress) return <Center><div className="text-white text-center"><div className="text-5xl animate-bounce">🏆</div><p className="mt-3 font-bold">{loginInProgress ? "Entrando..." : "Carregando..."}</p></div></Center>;
 
       if (!user) return (
         <Center>
