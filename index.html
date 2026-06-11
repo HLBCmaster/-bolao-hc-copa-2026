@@ -35,7 +35,7 @@
 
     // ====================== CONSTANTES ======================
     const ADMIN_EMAIL = "hugoleonardobc@gmail.com";
-    const DEADLINE = new Date("2026-06-20T23:59:00-03:00"); // previsões finais
+    const DEADLINE = new Date("2026-06-20T23:59:00-03:00");
     const PTS_EXATO = 15;
     const PTS_RESULTADO = 10;
     const PRED_PTS = { champion: 50, vicechampion: 30, third: 20, topscorer: 25, bestplayer: 40 };
@@ -47,7 +47,6 @@
       { key: "bestplayer", label: "🌟 Melhor Jogador" },
     ];
 
-    // Times: nome em PT + bandeira
     const T = {
       "Mexico":{pt:"México",f:"🇲🇽"},"South Africa":{pt:"África do Sul",f:"🇿🇦"},"South Korea":{pt:"Coreia do Sul",f:"🇰🇷"},
       "Canada":{pt:"Canadá",f:"🇨🇦"},"Qatar":{pt:"Catar",f:"🇶🇦"},"Switzerland":{pt:"Suíça",f:"🇨🇭"},
@@ -64,8 +63,6 @@
     };
     const team = (name) => T[name] || { pt: name, f: "🎫" };
 
-    // ====================== 72 JOGOS DA FASE DE GRUPOS ======================
-    // [grupo, rodada, time1, time2, estádio, horário (ISO com fuso local do estádio)]
     const RAW = [
       ["A","Rod.1","Mexico","South Africa","Cidade do México","2026-06-11T13:00:00-06:00"],
       ["A","Rod.1","South Korea","Vencedor Repescagem UEFA D","Guadalajara","2026-06-11T20:00:00-06:00"],
@@ -145,10 +142,9 @@
       group: r[0], matchday: r[1], team1: r[2], team2: r[3], ground: r[4], kickoff: r[5], result: null,
     }));
 
-    // ====================== HELPERS ======================
     const fmtDate = (iso) => new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" });
     const fmtTime = (iso) => new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
-    const isLocked = (iso) => new Date() >= new Date(new Date(iso).getTime() - 10 * 60000); // 10 min antes
+    const isLocked = (iso) => new Date() >= new Date(new Date(iso).getTime() - 10 * 60000);
 
     function outcome(s) {
       if (!s || !s.includes("-")) return null;
@@ -173,11 +169,10 @@
       return t;
     }
 
-    // ====================== APP ======================
     function App() {
-      const [loading, setLoading] = useState(true);
-      const [user, setUser] = useState(null);          // firebase auth user
-      const [profile, setProfile] = useState(null);    // doc users/{uid}
+      const [user, setUser] = useState(null);
+      const [profile, setProfile] = useState(null);
+      const [authLoading, setAuthLoading] = useState(true);
       const [needName, setNeedName] = useState(false);
       const [nameInput, setNameInput] = useState("");
       const [matches, setMatches] = useState([]);
@@ -195,19 +190,32 @@
       // ---- AUTH ----
       useEffect(() => {
         const unsub = auth.onAuthStateChanged(async (u) => {
-          setUser(u);
           if (u) {
-            const ref = db.collection("users").doc(u.uid);
-            const snap = await ref.get();
-            if (!snap.exists) { setNeedName(true); }
-            else { setProfile(snap.data()); }
-          } else { setProfile(null); }
-          setLoading(false);
+            setUser(u);
+            try {
+              const ref = db.collection("users").doc(u.uid);
+              const snap = await ref.get();
+              if (!snap.exists) {
+                setNeedName(true);
+              } else {
+                setProfile(snap.data());
+                setNeedName(false);
+              }
+            } catch (e) {
+              console.error("Erro ao buscar perfil:", e);
+              setNeedName(true);
+            }
+          } else {
+            setUser(null);
+            setProfile(null);
+            setNeedName(false);
+          }
+          setAuthLoading(false);
         });
         return unsub;
       }, []);
 
-      // ---- DADOS (jogos, usuários, resultados oficiais) ----
+      // ---- DADOS ----
       useEffect(() => {
         if (!user || needName) return;
         const u1 = db.collection("matches").orderBy("kickoff").onSnapshot(s => {
@@ -223,47 +231,63 @@
       }, [user, needName]);
 
       const login = async () => {
-        try { await auth.signInWithPopup(provider); }
-        catch (e) { setMsg("Erro no login: " + e.message); }
+        try {
+          await auth.signInWithPopup(provider);
+        } catch (e) {
+          setMsg("Erro no login: " + e.message);
+        }
       };
       const logout = () => auth.signOut();
 
       const saveName = async () => {
         if (!nameInput.trim()) return;
-        const data = { uid: user.uid, email: user.email, displayName: nameInput.trim(), bets: {}, predictions: {}, predChanges: {}, predSubmitted: false, createdAt: Date.now() };
-        await db.collection("users").doc(user.uid).set(data);
-        setProfile(data); setNeedName(false);
+        try {
+          const data = { uid: user.uid, email: user.email, displayName: nameInput.trim(), bets: {}, predictions: {}, predChanges: {}, predSubmitted: false, createdAt: Date.now() };
+          await db.collection("users").doc(user.uid).set(data);
+          setProfile(data);
+          setNeedName(false);
+        } catch (e) {
+          setMsg("Erro ao salvar nome: " + e.message);
+        }
       };
 
-      // ---- SEMEAR JOGOS (admin) ----
       const seed = async () => {
         setMsg("Semeando 72 jogos...");
-        const batch = db.batch();
-        SEED_MATCHES.forEach(m => batch.set(db.collection("matches").doc(m.id), m));
-        await batch.commit();
-        setMsg("✅ 72 jogos cadastrados com sucesso!");
+        try {
+          const batch = db.batch();
+          SEED_MATCHES.forEach(m => batch.set(db.collection("matches").doc(m.id), m));
+          await batch.commit();
+          setMsg("✅ 72 jogos cadastrados com sucesso!");
+        } catch (e) {
+          setMsg("Erro ao semear: " + e.message);
+        }
       };
 
-      // ---- SALVAR APOSTA ----
       const saveBet = async (m) => {
         const cur = (profile.bets || {})[m.id] || { guess: "", changes: 0 };
         const val = (drafts[m.id] !== undefined ? drafts[m.id] : cur.guess).trim();
         if (!val || val === cur.guess) return;
-        const changes = cur.guess ? cur.changes + 1 : 0;
-        const newBets = { ...(profile.bets || {}), [m.id]: { guess: val, changes } };
-        await db.collection("users").doc(user.uid).update({ bets: newBets });
-        setProfile({ ...profile, bets: newBets });
-        setDrafts({ ...drafts, [m.id]: undefined });
+        try {
+          const changes = cur.guess ? cur.changes + 1 : 0;
+          const newBets = { ...(profile.bets || {}), [m.id]: { guess: val, changes } };
+          await db.collection("users").doc(user.uid).update({ bets: newBets });
+          setProfile({ ...profile, bets: newBets });
+          setDrafts({ ...drafts, [m.id]: undefined });
+        } catch (e) {
+          setMsg("Erro ao salvar aposta: " + e.message);
+        }
       };
 
-      // ---- LANÇAR RESULTADO (admin) ----
       const saveResult = async (m) => {
         const val = (resultDrafts[m.id] || "").trim();
-        await db.collection("matches").doc(m.id).update({ result: val || null });
-        setMsg("✅ Resultado de " + team(m.team1).pt + " x " + team(m.team2).pt + " salvo.");
+        try {
+          await db.collection("matches").doc(m.id).update({ result: val || null });
+          setMsg("✅ Resultado salvo: " + team(m.team1).pt + " x " + team(m.team2).pt);
+        } catch (e) {
+          setMsg("Erro ao lançar resultado: " + e.message);
+        }
       };
 
-      // ---- PREVISÕES ----
       const updatePred = (key, value) => {
         if (deadlinePassed) return;
         if (profile.predSubmitted && (profile.predChanges || {})[key] >= 1) return;
@@ -271,20 +295,27 @@
       };
       const submitPred = async () => {
         if (deadlinePassed) return;
-        const changes = { ...(profile.predChanges || {}) };
-        if (profile.predSubmitted) PRED_LABELS.forEach(p => { changes[p.key] = Math.min(1, (changes[p.key] || 0) + 1); });
-        const data = { predictions: profile.predictions || {}, predChanges: changes, predSubmitted: true };
-        await db.collection("users").doc(user.uid).update(data);
-        setProfile({ ...profile, ...data });
-        setMsg("✅ Previsões enviadas!");
+        try {
+          const changes = { ...(profile.predChanges || {}) };
+          if (profile.predSubmitted) PRED_LABELS.forEach(p => { changes[p.key] = Math.min(1, (changes[p.key] || 0) + 1); });
+          const data = { predictions: profile.predictions || {}, predChanges: changes, predSubmitted: true };
+          await db.collection("users").doc(user.uid).update(data);
+          setProfile({ ...profile, ...data });
+          setMsg("✅ Previsões enviadas!");
+        } catch (e) {
+          setMsg("Erro ao enviar previsões: " + e.message);
+        }
       };
       const saveOfficial = async (key, value) => {
-        const data = { ...(official || {}), [key]: value };
-        await db.collection("config").doc("official").set(data, { merge: true });
+        try {
+          const data = { ...(official || {}), [key]: value };
+          await db.collection("config").doc("official").set(data, { merge: true });
+        } catch (e) {
+          setMsg("Erro ao salvar: " + e.message);
+        }
       };
 
-      // ====================== TELAS ======================
-      if (loading) return <Center><div className="text-white text-center"><div className="text-5xl animate-bounce">🏆</div><p className="mt-3 font-bold">Carregando...</p></div></Center>;
+      if (authLoading) return <Center><div className="text-white text-center"><div className="text-5xl animate-bounce">🏆</div><p className="mt-3 font-bold">Carregando...</p></div></Center>;
 
       if (!user) return (
         <Center>
@@ -306,6 +337,7 @@
             <input value={nameInput} onChange={e => setNameInput(e.target.value)} onKeyDown={e => e.key === "Enter" && saveName()} placeholder="ex: João, Mari, Carlão..." className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-green-500 focus:outline-none" autoFocus />
             <p className="text-xs text-gray-500 mt-1">Este nome aparece no ranking</p>
             <button onClick={saveName} disabled={!nameInput.trim()} className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white font-bold py-3 rounded-lg transition mt-3">Continuar</button>
+            {msg && <p className="text-xs text-red-500 text-center mt-2">{msg}</p>}
           </Card>
         </Center>
       );
@@ -317,7 +349,6 @@
 
       return (
         <div className="min-h-screen bg-gray-50">
-          {/* HEADER */}
           <header className="bg-gradient-to-r from-green-500 to-yellow-400 text-white shadow sticky top-0 z-20">
             <div className="max-w-3xl mx-auto px-4 py-3 flex justify-between items-center">
               <div className="flex items-center gap-2"><span className="text-2xl">🏆</span><div><h1 className="font-bold leading-tight">Bolão HC Copa 2026</h1><p className="text-xs opacity-90">Criado por HCmaster</p></div></div>
@@ -332,7 +363,6 @@
             </div></div>
           </header>
 
-          {/* NAV */}
           <nav className="bg-white border-b sticky top-[92px] z-10 overflow-x-auto">
             <div className="max-w-3xl mx-auto px-2 flex">
               {tabs.map(([id, lbl]) => (
@@ -344,7 +374,7 @@
           <main className="max-w-3xl mx-auto px-4 py-5">
             {msg && <div className="bg-blue-50 border border-blue-200 text-blue-800 text-sm rounded-lg p-3 mb-4 flex justify-between"><span>{msg}</span><button onClick={()=>setMsg("")} className="font-bold">✕</button></div>}
 
-            {matches.length === 0 && !isAdmin && <p className="text-center text-gray-500 py-10">Os jogos ainda não foram cadastrados pelo organizador. Volte em breve! ⚽</p>}
+            {matches.length === 0 && !isAdmin && <p className="text-center text-gray-500 py-10">Os jogos ainda não foram cadastrados. Volte em breve! ⚽</p>}
 
             {/* PLACARES */}
             {tab === "placares" && matches.map(m => {
@@ -494,7 +524,6 @@
       );
     }
 
-    // ---- componentes auxiliares ----
     const Center = ({ children }) => <div className="min-h-screen bg-gradient-to-br from-green-500 via-yellow-400 to-green-600 flex items-center justify-center p-4">{children}</div>;
     const Card = ({ children }) => <div className="bg-white rounded-2xl shadow-2xl p-7 max-w-sm w-full">{children}</div>;
     const Header = () => <div className="text-center mb-3"><div className="text-5xl">🏆</div><h1 className="text-2xl font-bold text-gray-800 mt-2">Bolão HC Copa 2026</h1><p className="text-gray-500 text-sm">Faça suas previsões e compete!</p></div>;
