@@ -76,8 +76,25 @@
   };
   const tname = n => T[n] || n;
 
+  // Aliases extras (repescagem) — chaves em PT e EN
+  const FLAG_ALIASES = {
+    "República Tcheca":"cz","Tchéquia":"cz","Czechia":"cz","Czech Republic":"cz",
+    "Bósnia e Herzegovina":"ba","Bósnia":"ba","Bosnia":"ba","Bosnia and Herzegovina":"ba",
+    "Turquia":"tr","Turkey":"tr","Türkiye":"tr",
+    "Suécia":"se","Sweden":"se",
+    "Iraque":"iq","Iraq":"iq",
+    "RD Congo":"cd","RDC":"cd","DR Congo":"cd","Congo DR":"cd","República Democrática do Congo":"cd",
+    "Itália":"it","Italy":"it","Dinamarca":"dk","Denmark":"dk","Polônia":"pl","Poland":"pl",
+    "Ucrânia":"ua","Ukraine":"ua","País de Gales":"gb-wls","Wales":"gb-wls","Eslováquia":"sk","Slovakia":"sk",
+    "Nigéria":"ng","Nigeria":"ng","Bolívia":"bo","Bolivia":"bo",
+  };
+  // índice normalizado (sem acento, minúsculo) para busca tolerante
+  const norm = s => (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
+  const FLAGS_NORM = {};
+  Object.entries({ ...FLAGS, ...FLAG_ALIASES }).forEach(([k,v])=>{ FLAGS_NORM[norm(k)]=v; });
+
   const Flag = ({ name, size="md" }) => {
-    const code = FLAGS[name];
+    const code = FLAGS[name] || FLAG_ALIASES[name] || FLAGS_NORM[norm(name)];
     if (!code) return <span className="text-gray-300 text-xs">🏳</span>;
     return (
       <img
@@ -171,6 +188,8 @@
   const fmtDate = iso => new Date(iso).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit"});
   const fmtTime = iso => new Date(iso).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",hour:"2-digit",minute:"2-digit"});
   const isLocked = iso => new Date() >= new Date(new Date(iso).getTime()-10*60000);
+  // extrai o número da rodada de "1", 1, "Rod.1", "Rodada 2" etc.
+  const roundOf = m => { const d=String(m.matchday).match(/\d+/); return d?parseInt(d[0],10):1; };
 
   function outcome(s) {
     if (!s||!s.includes("-")) return null;
@@ -535,7 +554,7 @@
                 <div className="px-4 py-2.5 flex justify-between items-center" style={{background:"linear-gradient(135deg,#064e3b,#065f46)"}}>
                   <div>
                     <span className="text-white text-xs font-bold">Grupo {m.group}</span>
-                    <span className="text-emerald-300 text-xs"> · Rodada {m.matchday}</span>
+                    <span className="text-emerald-300 text-xs"> · Rodada {roundOf(m)}</span>
                     <span className="text-emerald-300 text-xs"> · {fmtDate(m.kickoff)} às {fmtTime(m.kickoff)}</span>
                   </div>
                   {m.result
@@ -575,10 +594,11 @@
           {tab==="grupos" && (
             <div className="space-y-6">
               {groups.map(g=>{
-                const gMatches=matches.filter(m=>m.group===g);
+                const gMatches=matches.filter(m=>String(m.group)===String(g));
                 const standings=calcStandings(gMatches);
-                const round=groupRounds[g]||"1";
-                const roundMatches=gMatches.filter(m=>String(m.matchday)===String(round));
+                const roundNum=parseInt(groupRounds[g]||"1",10);
+                const round=String(roundNum);
+                const roundMatches=gMatches.filter(m=>roundOf(m)===roundNum);
 
                 return (
                   <div key={g} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -835,8 +855,31 @@
                 <button onClick={seed} className="bg-purple-600 hover:bg-purple-700 text-white font-bold px-4 py-2.5 rounded-xl transition">Semear 72 jogos</button>
               </div>
               <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
-                <h3 className="font-bold text-gray-800 mb-1">✏️ Renomear times de repescagem</h3>
-                <p className="text-xs text-gray-500">Vá na aba <b>Grupos</b> e clique no ✏️ ao lado do time.</p>
+                <h3 className="font-bold text-gray-800 mb-3">👥 Apostas por participante</h3>
+                <div className="space-y-2">
+                  {[...allUsers]
+                    .map(u=>({
+                      name: u.displayName,
+                      total: Object.values(u.bets||{}).filter(b=>b.guess).length,
+                      pts: userTotal(u,matches,official),
+                    }))
+                    .sort((a,b)=>b.total-a.total)
+                    .map((u,i)=>{
+                      const pct=matches.length>0?Math.round((u.total/matches.length)*100):0;
+                      return (
+                        <div key={i} className="flex items-center gap-3">
+                          <span className="text-sm font-medium text-gray-700 w-28 truncate">{u.name}</span>
+                          <div className="flex-1 bg-gray-100 rounded-full h-2">
+                            <div className="bg-emerald-500 h-2 rounded-full transition-all" style={{width:`${pct}%`}}></div>
+                          </div>
+                          <span className="text-xs font-bold text-gray-600 w-16 text-right">{u.total}/{matches.length}</span>
+                          <span className="text-xs text-emerald-600 font-bold w-14 text-right">{u.pts} pts</span>
+                        </div>
+                      );
+                    })
+                  }
+                </div>
+                {allUsers.length===0&&<p className="text-xs text-gray-400">Nenhum participante ainda.</p>}
               </div>
               <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
                 <h3 className="font-bold text-gray-800 mb-2">🏅 Resultados finais (previsões)</h3>
