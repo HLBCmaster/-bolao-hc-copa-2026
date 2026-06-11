@@ -18,7 +18,6 @@
   <script type="text/babel" data-presets="react">
     const { useState, useEffect } = React;
 
-    // ====================== CONFIG DO FIREBASE ======================
     const firebaseConfig = {
       apiKey: "AIzaSyBQUBb2rQ5OFrr86GUpGqlb3Dmp8NLYww0",
       authDomain: "bolao-hc-copa-2026.firebaseapp.com",
@@ -33,7 +32,6 @@
     const db = firebase.firestore();
     const provider = new firebase.auth.GoogleAuthProvider();
 
-    // ====================== CONSTANTES ======================
     const ADMIN_EMAIL = "hugoleonardobc@gmail.com";
     const DEADLINE = new Date("2026-06-20T23:59:00-03:00");
     const PTS_EXATO = 15;
@@ -113,23 +111,23 @@
       ["H","Rod.3","Cape Verde","Saudi Arabia","Houston","2026-06-26T19:00:00-05:00"],
       ["H","Rod.3","Uruguay","Spain","Guadalajara","2026-06-26T18:00:00-06:00"],
       ["I","Rod.1","France","Senegal","Nova York/Nova Jersey","2026-06-16T15:00:00-04:00"],
-      ["I","Rod.1","Vencedor Repescagem CONMEBOL/etc 2","Norway","Boston","2026-06-16T18:00:00-04:00"],
-      ["I","Rod.2","France","Vencedor Repescagem CONMEBOL/etc 2","Filadélfia","2026-06-22T17:00:00-04:00"],
+      ["I","Rod.1","Vencedor Repescagem CONMEBOL 2","Norway","Boston","2026-06-16T18:00:00-04:00"],
+      ["I","Rod.2","France","Vencedor Repescagem CONMEBOL 2","Filadélfia","2026-06-22T17:00:00-04:00"],
       ["I","Rod.2","Norway","Senegal","Nova York/Nova Jersey","2026-06-22T20:00:00-04:00"],
       ["I","Rod.3","Norway","France","Boston","2026-06-26T15:00:00-04:00"],
-      ["I","Rod.3","Senegal","Vencedor Repescagem CONMEBOL/etc 2","Toronto","2026-06-26T15:00:00-04:00"],
+      ["I","Rod.3","Senegal","Vencedor Repescagem CONMEBOL 2","Toronto","2026-06-26T15:00:00-04:00"],
       ["J","Rod.1","Argentina","Algeria","Kansas City","2026-06-16T20:00:00-05:00"],
       ["J","Rod.1","Austria","Jordan","San Francisco","2026-06-16T21:00:00-07:00"],
       ["J","Rod.2","Argentina","Austria","Dallas","2026-06-22T12:00:00-05:00"],
       ["J","Rod.2","Jordan","Algeria","San Francisco","2026-06-22T20:00:00-07:00"],
       ["J","Rod.3","Algeria","Austria","Kansas City","2026-06-27T21:00:00-05:00"],
       ["J","Rod.3","Jordan","Argentina","Dallas","2026-06-27T21:00:00-05:00"],
-      ["K","Rod.1","Portugal","Vencedor Repescagem CONMEBOL/etc 1","Houston","2026-06-17T12:00:00-05:00"],
+      ["K","Rod.1","Portugal","Vencedor Repescagem CONMEBOL 1","Houston","2026-06-17T12:00:00-05:00"],
       ["K","Rod.1","Uzbekistan","Colombia","Cidade do México","2026-06-17T20:00:00-06:00"],
       ["K","Rod.2","Portugal","Uzbekistan","Houston","2026-06-23T12:00:00-05:00"],
-      ["K","Rod.2","Colombia","Vencedor Repescagem CONMEBOL/etc 1","Guadalajara","2026-06-23T20:00:00-06:00"],
+      ["K","Rod.2","Colombia","Vencedor Repescagem CONMEBOL 1","Guadalajara","2026-06-23T20:00:00-06:00"],
       ["K","Rod.3","Colombia","Portugal","Miami","2026-06-27T19:30:00-04:00"],
-      ["K","Rod.3","Vencedor Repescagem CONMEBOL/etc 1","Uzbekistan","Atlanta","2026-06-27T19:30:00-04:00"],
+      ["K","Rod.3","Vencedor Repescagem CONMEBOL 1","Uzbekistan","Atlanta","2026-06-27T19:30:00-04:00"],
       ["L","Rod.1","England","Croatia","Dallas","2026-06-17T15:00:00-05:00"],
       ["L","Rod.1","Ghana","Panama","Toronto","2026-06-17T19:00:00-04:00"],
       ["L","Rod.2","England","Ghana","Boston","2026-06-23T16:00:00-04:00"],
@@ -169,6 +167,26 @@
       return t;
     }
 
+    // Calcula tabela de classificação de um grupo
+    function calcStandings(groupMatches) {
+      const table = {};
+      groupMatches.forEach(m => {
+        [m.team1, m.team2].forEach(t => {
+          if (!table[t]) table[t] = { name: t, pts: 0, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, sg: 0 };
+        });
+        if (!m.result) return;
+        const [g1, g2] = m.result.split("-").map(Number);
+        const t1 = table[m.team1], t2 = table[m.team2];
+        t1.j++; t2.j++;
+        t1.gp += g1; t1.gc += g2; t1.sg += g1 - g2;
+        t2.gp += g2; t2.gc += g1; t2.sg += g2 - g1;
+        if (g1 > g2) { t1.v++; t1.pts += 3; t2.d++; }
+        else if (g1 < g2) { t2.v++; t2.pts += 3; t1.d++; }
+        else { t1.e++; t1.pts++; t2.e++; t2.pts++; }
+      });
+      return Object.values(table).sort((a, b) => b.pts - a.pts || b.sg - a.sg || b.gp - a.gp);
+    }
+
     function App() {
       const [user, setUser] = useState(null);
       const [profile, setProfile] = useState(null);
@@ -183,12 +201,13 @@
       const [drafts, setDrafts] = useState({});
       const [resultDrafts, setResultDrafts] = useState({});
       const [msg, setMsg] = useState("");
+      const [selectedGroup, setSelectedGroup] = useState("A");
+      const [editingTeam, setEditingTeam] = useState(null); // { matchId, field, value }
 
       const isAdmin = user && user.email === ADMIN_EMAIL;
       const deadlinePassed = new Date() > DEADLINE;
       const daysLeft = Math.max(0, Math.ceil((DEADLINE - new Date()) / 86400000));
 
-      // ---- AUTH ----
       useEffect(() => {
         const unsub = auth.onAuthStateChanged(async (u) => {
           if (u) {
@@ -196,20 +215,11 @@
             try {
               const ref = db.collection("users").doc(u.uid);
               const snap = await ref.get();
-              if (!snap.exists) {
-                setNeedName(true);
-              } else {
-                setProfile(snap.data());
-                setNeedName(false);
-              }
-            } catch (e) {
-              console.error("Erro ao buscar perfil:", e);
-              setNeedName(true);
-            }
+              if (!snap.exists) { setNeedName(true); }
+              else { setProfile(snap.data()); setNeedName(false); }
+            } catch (e) { setNeedName(true); }
           } else {
-            setUser(null);
-            setProfile(null);
-            setNeedName(false);
+            setUser(null); setProfile(null); setNeedName(false);
           }
           setLoginInProgress(false);
           setAuthLoading(false);
@@ -217,30 +227,17 @@
         return unsub;
       }, []);
 
-      // ---- DADOS ----
       useEffect(() => {
         if (!user || needName) return;
-        const u1 = db.collection("matches").orderBy("kickoff").onSnapshot(s => {
-          setMatches(s.docs.map(d => d.data()));
-        });
-        const u2 = db.collection("users").onSnapshot(s => {
-          setAllUsers(s.docs.map(d => d.data()));
-        });
-        const u3 = db.collection("config").doc("official").onSnapshot(s => {
-          setOfficial(s.exists ? s.data() : {});
-        });
+        const u1 = db.collection("matches").orderBy("kickoff").onSnapshot(s => setMatches(s.docs.map(d => d.data())));
+        const u2 = db.collection("users").onSnapshot(s => setAllUsers(s.docs.map(d => d.data())));
+        const u3 = db.collection("config").doc("official").onSnapshot(s => setOfficial(s.exists ? s.data() : {}));
         return () => { u1(); u2(); u3(); };
       }, [user, needName]);
 
       const login = async () => {
-        try {
-          setLoginInProgress(true);
-          await auth.signInWithPopup(provider);
-          // onAuthStateChanged vai cuidar do resto
-        } catch (e) {
-          setLoginInProgress(false);
-          setMsg("Erro no login: " + e.message);
-        }
+        try { setLoginInProgress(true); await auth.signInWithPopup(provider); }
+        catch (e) { setLoginInProgress(false); setMsg("Erro no login: " + e.message); }
       };
       const logout = () => auth.signOut();
 
@@ -249,11 +246,8 @@
         try {
           const data = { uid: user.uid, email: user.email, displayName: nameInput.trim(), bets: {}, predictions: {}, predChanges: {}, predSubmitted: false, createdAt: Date.now() };
           await db.collection("users").doc(user.uid).set(data);
-          setProfile(data);
-          setNeedName(false);
-        } catch (e) {
-          setMsg("Erro ao salvar nome: " + e.message);
-        }
+          setProfile(data); setNeedName(false);
+        } catch (e) { setMsg("Erro ao salvar nome: " + e.message); }
       };
 
       const seed = async () => {
@@ -263,9 +257,7 @@
           SEED_MATCHES.forEach(m => batch.set(db.collection("matches").doc(m.id), m));
           await batch.commit();
           setMsg("✅ 72 jogos cadastrados com sucesso!");
-        } catch (e) {
-          setMsg("Erro ao semear: " + e.message);
-        }
+        } catch (e) { setMsg("Erro ao semear: " + e.message); }
       };
 
       const saveBet = async (m) => {
@@ -278,9 +270,7 @@
           await db.collection("users").doc(user.uid).update({ bets: newBets });
           setProfile({ ...profile, bets: newBets });
           setDrafts({ ...drafts, [m.id]: undefined });
-        } catch (e) {
-          setMsg("Erro ao salvar aposta: " + e.message);
-        }
+        } catch (e) { setMsg("Erro ao salvar aposta: " + e.message); }
       };
 
       const saveResult = async (m) => {
@@ -288,9 +278,17 @@
         try {
           await db.collection("matches").doc(m.id).update({ result: val || null });
           setMsg("✅ Resultado salvo: " + team(m.team1).pt + " x " + team(m.team2).pt);
-        } catch (e) {
-          setMsg("Erro ao lançar resultado: " + e.message);
-        }
+        } catch (e) { setMsg("Erro ao lançar resultado: " + e.message); }
+      };
+
+      // Renomear time de repescagem direto pelo app (admin)
+      const saveTeamName = async (matchId, field, newName) => {
+        if (!newName.trim()) return;
+        try {
+          await db.collection("matches").doc(matchId).update({ [field]: newName.trim() });
+          setEditingTeam(null);
+          setMsg("✅ Nome atualizado!");
+        } catch (e) { setMsg("Erro: " + e.message); }
       };
 
       const updatePred = (key, value) => {
@@ -307,49 +305,41 @@
           await db.collection("users").doc(user.uid).update(data);
           setProfile({ ...profile, ...data });
           setMsg("✅ Previsões enviadas!");
-        } catch (e) {
-          setMsg("Erro ao enviar previsões: " + e.message);
-        }
+        } catch (e) { setMsg("Erro: " + e.message); }
       };
       const saveOfficial = async (key, value) => {
         try {
-          const data = { ...(official || {}), [key]: value };
-          await db.collection("config").doc("official").set(data, { merge: true });
-        } catch (e) {
-          setMsg("Erro ao salvar: " + e.message);
-        }
+          await db.collection("config").doc("official").set({ ...(official || {}), [key]: value }, { merge: true });
+        } catch (e) { setMsg("Erro: " + e.message); }
       };
 
       if (authLoading || loginInProgress) return <Center><div className="text-white text-center"><div className="text-5xl animate-bounce">🏆</div><p className="mt-3 font-bold">{loginInProgress ? "Entrando..." : "Carregando..."}</p></div></Center>;
 
       if (!user) return (
-        <Center>
-          <Card>
-            <Header />
-            <button onClick={login} className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-lg transition mt-2">Entrar com Google</button>
-            <a href="https://wa.me/5519981719881" target="_blank" className="block text-center mt-3 text-green-600 font-semibold text-sm">Dúvidas? WhatsApp (19) 98171-9881</a>
-            <p className="text-xs text-gray-400 text-center mt-3">Criado por HCmaster</p>
-            {msg && <p className="text-xs text-red-500 text-center mt-2">{msg}</p>}
-          </Card>
-        </Center>
+        <Center><Card>
+          <Header />
+          <button onClick={login} className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-lg transition mt-2">Entrar com Google</button>
+          <a href="https://wa.me/5519981719881" target="_blank" className="block text-center mt-3 text-green-600 font-semibold text-sm">Dúvidas? WhatsApp (19) 98171-9881</a>
+          <p className="text-xs text-gray-400 text-center mt-3">Criado por HCmaster</p>
+          {msg && <p className="text-xs text-red-500 text-center mt-2">{msg}</p>}
+        </Card></Center>
       );
 
       if (needName) return (
-        <Center>
-          <Card>
-            <Header />
-            <label className="block text-sm font-semibold text-gray-700 mb-1 mt-2">Como quer ser chamado?</label>
-            <input value={nameInput} onChange={e => setNameInput(e.target.value)} onKeyDown={e => e.key === "Enter" && saveName()} placeholder="ex: João, Mari, Carlão..." className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-green-500 focus:outline-none" autoFocus />
-            <p className="text-xs text-gray-500 mt-1">Este nome aparece no ranking</p>
-            <button onClick={saveName} disabled={!nameInput.trim()} className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white font-bold py-3 rounded-lg transition mt-3">Continuar</button>
-            {msg && <p className="text-xs text-red-500 text-center mt-2">{msg}</p>}
-          </Card>
-        </Center>
+        <Center><Card>
+          <Header />
+          <label className="block text-sm font-semibold text-gray-700 mb-1 mt-2">Como quer ser chamado?</label>
+          <input value={nameInput} onChange={e => setNameInput(e.target.value)} onKeyDown={e => e.key === "Enter" && saveName()} placeholder="ex: João, Mari, Carlão..." className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-green-500 focus:outline-none" autoFocus />
+          <p className="text-xs text-gray-500 mt-1">Este nome aparece no ranking</p>
+          <button onClick={saveName} disabled={!nameInput.trim()} className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white font-bold py-3 rounded-lg transition mt-3">Continuar</button>
+          {msg && <p className="text-xs text-red-500 text-center mt-2">{msg}</p>}
+        </Card></Center>
       );
 
       const sorted = [...allUsers].map(u => ({ ...u, pts: userTotal(u, matches, official) })).sort((a, b) => b.pts - a.pts);
       const myPts = userTotal(profile, matches, official);
-      const tabs = [["placares","📊 Placares"],["acomp","👀 Acompanhamento"],["pred","🌟 Previsões"],["rank","🏆 Ranking"],["regras","📜 Regras"]];
+      const groups = [...new Set(matches.map(m => m.group))].sort();
+      const tabs = [["placares","📊 Placares"],["grupos","🗂️ Grupos"],["acomp","👀 Acompanhamento"],["pred","🌟 Previsões"],["rank","🏆 Ranking"],["regras","📜 Regras"]];
       if (isAdmin) tabs.push(["admin","⚙️ Admin"]);
 
       return (
@@ -363,7 +353,8 @@
               </div>
             </div>
             <div className="max-w-3xl mx-auto px-4 pb-2"><div className="bg-black/20 rounded p-2 text-xs flex justify-between flex-wrap gap-1">
-              <span>📍 Fase de Grupos</span><span>🎮 {matches.filter(m=>m.result).length}/{matches.length} jogos</span>
+              <span>📍 Fase de Grupos</span>
+              <span>🎮 {matches.filter(m=>m.result).length}/{matches.length} jogos</span>
               <span>⏱️ Previsões: {deadlinePassed ? "encerradas" : daysLeft + " dias"}</span>
             </div></div>
           </header>
@@ -381,12 +372,13 @@
 
             {matches.length === 0 && !isAdmin && <p className="text-center text-gray-500 py-10">Os jogos ainda não foram cadastrados. Volte em breve! ⚽</p>}
 
-            {/* PLACARES */}
+            {/* ===== PLACARES ===== */}
             {tab === "placares" && matches.map(m => {
               const bet = (profile.bets || {})[m.id] || { guess: "", changes: 0 };
               const locked = isLocked(m.kickoff);
               const canEdit = !locked && bet.changes < 1;
               const pts = m.result ? betPoints(bet.guess, m.result) : null;
+              const t1 = team(m.team1), t2 = team(m.team2);
               return (
                 <div key={m.id} className="bg-white rounded-xl shadow-sm mb-3 overflow-hidden border border-gray-100">
                   <div className="bg-gray-50 px-3 py-2 flex justify-between items-center text-xs text-gray-500">
@@ -396,8 +388,8 @@
                       : <span className="font-bold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">⏰ Aberto</span>}
                   </div>
                   <div className="p-3">
-                    <Row flag={team(m.team1).f} name={team(m.team1).pt} score={m.result ? m.result.split("-")[0] : null} />
-                    <Row flag={team(m.team2).f} name={team(m.team2).pt} score={m.result ? m.result.split("-")[1] : null} />
+                    <Row flag={t1.f} name={t1.pt} score={m.result ? m.result.split("-")[0] : null} />
+                    <Row flag={t2.f} name={t2.pt} score={m.result ? m.result.split("-")[1] : null} />
                     <p className="text-xs text-gray-400 mt-1">📍 {m.ground}</p>
                     {m.result ? (
                       <div className="mt-2 text-sm bg-gray-50 rounded p-2 flex justify-between">
@@ -413,7 +405,6 @@
                       <div className="mt-2 text-sm bg-orange-50 rounded p-2 flex justify-between"><span>Sua aposta: <b>{bet.guess || "não apostou"}</b></span><span className="text-xs text-orange-600">{bet.changes >= 1 ? "alteração usada" : "fechado"}</span></div>
                     )}
                     {bet.guess && canEdit && <p className="text-xs text-gray-400 mt-1">⚠️ Você ainda pode alterar 1 vez.</p>}
-
                     {isAdmin && (
                       <div className="mt-2 flex gap-2 bg-purple-50 rounded p-2">
                         <input value={resultDrafts[m.id] !== undefined ? resultDrafts[m.id] : (m.result || "")} onChange={e => setResultDrafts({ ...resultDrafts, [m.id]: e.target.value })} placeholder="resultado 2-1" className="flex-1 px-2 py-1 text-center border rounded" />
@@ -425,7 +416,117 @@
               );
             })}
 
-            {/* ACOMPANHAMENTO */}
+            {/* ===== GRUPOS + CLASSIFICAÇÃO ===== */}
+            {tab === "grupos" && (
+              <div>
+                <h2 className="text-xl font-bold mb-3">🗂️ Grupos da Copa</h2>
+
+                {/* Seletor de grupo */}
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {groups.map(g => (
+                    <button key={g} onClick={() => setSelectedGroup(g)} className={"px-3 py-1 rounded-full text-sm font-bold border-2 transition " + (selectedGroup === g ? "bg-green-500 border-green-500 text-white" : "border-gray-300 text-gray-600 bg-white")}>Grupo {g}</button>
+                  ))}
+                </div>
+
+                {(() => {
+                  const gMatches = matches.filter(m => m.group === selectedGroup);
+                  const standings = calcStandings(gMatches);
+                  return (
+                    <div className="space-y-4">
+                      {/* Tabela de classificação */}
+                      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                        <div className="bg-green-500 text-white px-4 py-2 text-sm font-bold">Classificação — Grupo {selectedGroup}</div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead className="bg-gray-50 text-xs text-gray-500">
+                              <tr>
+                                <th className="px-3 py-2 text-left">#</th>
+                                <th className="px-3 py-2 text-left">Time</th>
+                                <th className="px-2 py-2 text-center">J</th>
+                                <th className="px-2 py-2 text-center">V</th>
+                                <th className="px-2 py-2 text-center">E</th>
+                                <th className="px-2 py-2 text-center">D</th>
+                                <th className="px-2 py-2 text-center">GP</th>
+                                <th className="px-2 py-2 text-center">GC</th>
+                                <th className="px-2 py-2 text-center">SG</th>
+                                <th className="px-2 py-2 text-center font-bold text-green-600">Pts</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {standings.map((s, i) => (
+                                <tr key={s.name} className={"border-t " + (i < 2 ? "bg-green-50" : "")}>
+                                  <td className="px-3 py-2 text-gray-500 font-bold">{i + 1}</td>
+                                  <td className="px-3 py-2 font-semibold">{team(s.name).f} {team(s.name).pt}{i < 2 && <span className="ml-1 text-xs text-green-600">✓</span>}</td>
+                                  <td className="px-2 py-2 text-center text-gray-600">{s.j}</td>
+                                  <td className="px-2 py-2 text-center text-gray-600">{s.v}</td>
+                                  <td className="px-2 py-2 text-center text-gray-600">{s.e}</td>
+                                  <td className="px-2 py-2 text-center text-gray-600">{s.d}</td>
+                                  <td className="px-2 py-2 text-center text-gray-600">{s.gp}</td>
+                                  <td className="px-2 py-2 text-center text-gray-600">{s.gc}</td>
+                                  <td className="px-2 py-2 text-center text-gray-600">{s.sg > 0 ? "+" + s.sg : s.sg}</td>
+                                  <td className="px-2 py-2 text-center font-bold text-green-600">{s.pts}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        <p className="text-xs text-gray-400 px-3 py-2">✓ Classificados para as oitavas</p>
+                      </div>
+
+                      {/* Jogos do grupo */}
+                      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                        <div className="bg-gray-100 px-4 py-2 text-sm font-bold text-gray-700">Jogos do Grupo {selectedGroup}</div>
+                        {gMatches.map(m => {
+                          const t1 = team(m.team1), t2 = team(m.team2);
+                          return (
+                            <div key={m.id} className="border-t px-4 py-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 text-right">
+                                  <span className="font-semibold text-sm">{t1.pt}</span>
+                                  <span className="ml-1">{t1.f}</span>
+                                  {isAdmin && (
+                                    <button onClick={() => setEditingTeam({ matchId: m.id, field: "team1", value: m.team1 })} className="ml-1 text-xs text-purple-400 hover:text-purple-600">✏️</button>
+                                  )}
+                                </div>
+                                <div className="mx-3 text-center min-w-[60px]">
+                                  {m.result
+                                    ? <span className="font-bold text-lg text-green-700">{m.result.replace("-", " - ")}</span>
+                                    : <span className="text-xs text-gray-400">{fmtDate(m.kickoff)}<br/>{fmtTime(m.kickoff)}</span>
+                                  }
+                                </div>
+                                <div className="flex-1 text-left">
+                                  {isAdmin && (
+                                    <button onClick={() => setEditingTeam({ matchId: m.id, field: "team2", value: m.team2 })} className="mr-1 text-xs text-purple-400 hover:text-purple-600">✏️</button>
+                                  )}
+                                  <span>{t2.f}</span>
+                                  <span className="ml-1 font-semibold text-sm">{t2.pt}</span>
+                                </div>
+                              </div>
+                              {/* Modal de edição inline (admin) */}
+                              {isAdmin && editingTeam && editingTeam.matchId === m.id && (
+                                <div className="mt-2 flex gap-2 bg-purple-50 rounded p-2">
+                                  <input
+                                    value={editingTeam.value}
+                                    onChange={e => setEditingTeam({ ...editingTeam, value: e.target.value })}
+                                    className="flex-1 px-2 py-1 border rounded text-sm"
+                                    placeholder="Nome do time em inglês (ex: Italy)"
+                                    autoFocus
+                                  />
+                                  <button onClick={() => saveTeamName(editingTeam.matchId, editingTeam.field, editingTeam.value)} className="bg-purple-600 text-white text-xs px-3 rounded">Salvar</button>
+                                  <button onClick={() => setEditingTeam(null)} className="bg-gray-300 text-xs px-3 rounded">Cancelar</button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* ===== ACOMPANHAMENTO ===== */}
             {tab === "acomp" && (
               <div className="space-y-4">
                 <div className="grid grid-cols-3 gap-2">
@@ -455,7 +556,7 @@
               </div>
             )}
 
-            {/* PREVISÕES */}
+            {/* ===== PREVISÕES ===== */}
             {tab === "pred" && (
               <div>
                 <div className="flex justify-between items-center mb-3">
@@ -477,7 +578,7 @@
               </div>
             )}
 
-            {/* RANKING */}
+            {/* ===== RANKING ===== */}
             {tab === "rank" && (
               <div>
                 <h2 className="text-xl font-bold mb-3">🏆 Ranking Geral</h2>
@@ -493,7 +594,7 @@
               </div>
             )}
 
-            {/* REGRAS */}
+            {/* ===== REGRAS ===== */}
             {tab === "regras" && (
               <div className="space-y-3 text-sm">
                 <Box title="ℹ️ Geral"><ul className="space-y-1 text-gray-600"><li>🏆 Copa do Mundo 2026 — bolão individual</li><li>👥 Até 50 participantes · sem prêmios</li><li>🕐 Pode entrar durante a Copa (começa com 0 pts)</li></ul></Box>
@@ -503,15 +604,18 @@
               </div>
             )}
 
-            {/* ADMIN */}
+            {/* ===== ADMIN ===== */}
             {tab === "admin" && isAdmin && (
               <div className="space-y-4">
                 <Box title="⚙️ Cadastro dos jogos">
                   <p className="text-sm text-gray-600 mb-2">Jogos no banco: <b>{matches.length}</b>. Clique abaixo para cadastrar os 72 jogos (faça só uma vez).</p>
                   <button onClick={seed} className="bg-purple-600 text-white font-bold px-4 py-2 rounded-lg">Semear 72 jogos</button>
                 </Box>
-                <Box title="🏅 Resultados finais (para pontuar as previsões)">
-                  <p className="text-xs text-gray-500 mb-2">Preencha ao fim da Copa. Use exatamente o mesmo nome que os jogadores digitaram.</p>
+                <Box title="✏️ Renomear times de repescagem">
+                  <p className="text-xs text-gray-500 mb-2">Vá na aba <b>Grupos</b>, selecione o grupo e clique no ✏️ ao lado do nome do time para renomeá-lo.</p>
+                </Box>
+                <Box title="🏅 Resultados finais (previsões)">
+                  <p className="text-xs text-gray-500 mb-2">Preencha ao fim da Copa com o mesmo nome que os jogadores digitaram.</p>
                   {PRED_LABELS.map(p => (
                     <div key={p.key} className="flex items-center gap-2 mb-2">
                       <span className="w-32 text-sm">{p.label}</span>
@@ -520,7 +624,7 @@
                   ))}
                   <p className="text-xs text-gray-400">Salva automaticamente ao clicar fora do campo.</p>
                 </Box>
-                <p className="text-xs text-gray-500">💡 Para lançar placares dos jogos, vá na aba <b>Placares</b> — só você vê o campo roxo "Lançar".</p>
+                <p className="text-xs text-gray-500">💡 Para lançar placares, vá na aba <b>Placares</b> — só você vê o campo roxo "Lançar".</p>
               </div>
             )}
           </main>
@@ -529,12 +633,12 @@
       );
     }
 
-    const Center = ({ children }) => <div className="min-h-screen bg-gradient-to-br from-green-500 via-yellow-400 to-green-600 flex items-center justify-center p-4">{children}</div>;
-    const Card = ({ children }) => <div className="bg-white rounded-2xl shadow-2xl p-7 max-w-sm w-full">{children}</div>;
+    const Center = ({children}) => <div className="min-h-screen bg-gradient-to-br from-green-500 via-yellow-400 to-green-600 flex items-center justify-center p-4">{children}</div>;
+    const Card = ({children}) => <div className="bg-white rounded-2xl shadow-2xl p-7 max-w-sm w-full">{children}</div>;
     const Header = () => <div className="text-center mb-3"><div className="text-5xl">🏆</div><h1 className="text-2xl font-bold text-gray-800 mt-2">Bolão HC Copa 2026</h1><p className="text-gray-500 text-sm">Faça suas previsões e compete!</p></div>;
-    const Row = ({ flag, name, score }) => <div className="flex items-center gap-3 py-1"><div className={"w-11 h-11 rounded-lg flex items-center justify-center text-xl font-bold " + (score !== null ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-400")}>{score !== null ? score : "–"}</div><span className="text-xl">{flag}</span><span className="font-bold text-gray-800">{name}</span></div>;
-    const Stat = ({ n, l, c }) => <div className="bg-white rounded-lg shadow-sm p-3 text-center"><p className={"text-2xl font-bold text-" + c + "-600"}>{n}</p><p className="text-xs text-gray-500">{l}</p></div>;
-    const Box = ({ title, children }) => <div className="bg-white rounded-xl shadow-sm p-4"><h3 className="font-bold text-gray-800 mb-2">{title}</h3>{children}</div>;
+    const Row = ({flag, name, score}) => <div className="flex items-center gap-3 py-1"><div className={"w-11 h-11 rounded-lg flex items-center justify-center text-xl font-bold " + (score !== null ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-400")}>{score !== null ? score : "–"}</div><span className="text-xl">{flag}</span><span className="font-bold text-gray-800">{name}</span></div>;
+    const Stat = ({n, l, c}) => <div className="bg-white rounded-lg shadow-sm p-3 text-center"><p className={"text-2xl font-bold text-" + c + "-600"}>{n}</p><p className="text-xs text-gray-500">{l}</p></div>;
+    const Box = ({title, children}) => <div className="bg-white rounded-xl shadow-sm p-4"><h3 className="font-bold text-gray-800 mb-2">{title}</h3>{children}</div>;
 
     ReactDOM.createRoot(document.getElementById("root")).render(<App />);
   </script>
