@@ -209,63 +209,46 @@
     return Object.values(table).sort((a,b)=>b.pts-a.pts||b.sg-a.sg||b.gp-a.gp);
   }
 
-  // ====================== BetRow — linha de aposta inline ======================
+  // ====================== BetRow — layout HORIZONTAL (time [gol] × [gol] time) ======================
   function BetRow({ m, bet, canEdit, onSave }) {
     const [g1,setG1] = useState(bet.guess ? bet.guess.split("-")[0] : "");
     const [g2,setG2] = useState(bet.guess ? bet.guess.split("-")[1] : "");
 
-    const handleSave = () => {
-      if (g1===""||g2==="") return;
-      onSave(g1, g2);
-    };
+    const ScoreBox = ({ value, onChange, locked }) => (
+      locked
+        ? <div className="w-10 h-10 rounded-xl bg-orange-50 border-2 border-orange-100 flex items-center justify-center font-bold text-lg text-orange-400">{value||"–"}</div>
+        : <div className="w-10 h-10 rounded-xl border-2 border-gray-200 focus-within:border-emerald-400 flex items-center justify-center">
+            <input type="number" min="0" max="20" value={value} onChange={e=>onChange(e.target.value)} className="w-full h-full text-center font-bold text-lg bg-transparent focus:outline-none" />
+          </div>
+    );
 
     return (
-      <div className="space-y-2">
-        {/* LINHA TIME 1 */}
-        <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg
-            ${canEdit
-              ? "border-2 border-gray-200 focus-within:border-emerald-400"
-              : "bg-orange-50 border-2 border-orange-100"}`}>
-            {canEdit
-              ? <input type="number" min="0" max="20" value={g1} onChange={e=>setG1(e.target.value)} className="w-full h-full text-center font-bold text-lg bg-transparent focus:outline-none" />
-              : <span className="text-orange-400">{g1||"–"}</span>
-            }
+      <div>
+        {/* ── LINHA ÚNICA: Nome [gol] × [gol] Nome ── */}
+        <div className="flex items-center gap-2">
+          {/* time 1 */}
+          <div className="flex items-center gap-2 flex-1 justify-end">
+            <span className="font-semibold text-gray-800 text-sm text-right leading-tight">{tname(m.team1)}</span>
+            <Flag name={m.team1} />
           </div>
-          <Flag name={m.team1} />
-          <span className="font-semibold text-gray-800 flex-1 text-sm">{tname(m.team1)}</span>
+
+          {/* placar */}
+          <div className="flex items-center gap-1 shrink-0">
+            <ScoreBox value={g1} onChange={setG1} locked={!canEdit} />
+            <span className="text-gray-400 font-bold text-sm px-0.5">×</span>
+            <ScoreBox value={g2} onChange={setG2} locked={!canEdit} />
+          </div>
+
+          {/* time 2 */}
+          <div className="flex items-center gap-2 flex-1 justify-start">
+            <Flag name={m.team2} />
+            <span className="font-semibold text-gray-800 text-sm leading-tight">{tname(m.team2)}</span>
+          </div>
         </div>
 
-        {/* separador */}
-        <div className="flex items-center gap-3">
-          <div className="w-10 flex items-center justify-center">
-            <span className="text-gray-300 font-bold text-xs">×</span>
-          </div>
-          <span className="text-xs text-gray-300">vs</span>
-        </div>
-
-        {/* LINHA TIME 2 */}
-        <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg
-            ${canEdit
-              ? "border-2 border-gray-200 focus-within:border-emerald-400"
-              : "bg-orange-50 border-2 border-orange-100"}`}>
-            {canEdit
-              ? <input type="number" min="0" max="20" value={g2} onChange={e=>setG2(e.target.value)} className="w-full h-full text-center font-bold text-lg bg-transparent focus:outline-none" />
-              : <span className="text-orange-400">{g2||"–"}</span>
-            }
-          </div>
-          <Flag name={m.team2} />
-          <span className="font-semibold text-gray-800 flex-1 text-sm">{tname(m.team2)}</span>
-        </div>
-
-        {/* botão enviar/alterar */}
         {canEdit && (
-          <button
-            onClick={handleSave}
-            disabled={g1===""||g2===""}
-            className="w-full mt-1 py-2 rounded-xl font-semibold text-sm transition
-              bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-200 disabled:text-gray-400 text-white">
+          <button onClick={()=>{ if(g1!==""&&g2!=="") onSave(g1,g2); }} disabled={g1===""||g2===""}
+            className={`w-full mt-3 py-2 rounded-xl font-semibold text-sm transition disabled:bg-gray-200 disabled:text-gray-400 text-white ${bet.guess ? "bg-red-500 hover:bg-red-600" : "bg-emerald-500 hover:bg-emerald-600"}`}>
             {bet.guess ? "Alterar aposta" : "Enviar aposta"}
           </button>
         )}
@@ -273,24 +256,24 @@
     );
   }
 
-  // ====================== ResultRow — placar oficial ======================
+  // ====================== ResultRow — placar oficial horizontal ======================
   function ResultRow({ m, pts }) {
     const [g1,g2] = m.result.split("-");
     const color = pts===PTS_EXATO ? "bg-emerald-500 text-white" : pts===PTS_RESULTADO ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-600";
     return (
-      <div className="space-y-2">
-        <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg ${color}`}>{g1}</div>
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-1 justify-end">
+          <span className="font-semibold text-gray-800 text-sm text-right">{tname(m.team1)}</span>
           <Flag name={m.team1} />
-          <span className="font-semibold text-gray-800 flex-1 text-sm">{tname(m.team1)}</span>
         </div>
-        <div className="flex items-center gap-3 ml-1">
-          <span className="w-8 text-center text-gray-300 text-xs font-bold">×</span>
-        </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1 shrink-0">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg ${color}`}>{g1}</div>
+          <span className="text-gray-400 font-bold text-sm px-0.5">×</span>
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg ${color}`}>{g2}</div>
+        </div>
+        <div className="flex items-center gap-2 flex-1 justify-start">
           <Flag name={m.team2} />
-          <span className="font-semibold text-gray-800 flex-1 text-sm">{tname(m.team2)}</span>
+          <span className="font-semibold text-gray-800 text-sm">{tname(m.team2)}</span>
         </div>
       </div>
     );
@@ -595,7 +578,7 @@
                 const gMatches=matches.filter(m=>m.group===g);
                 const standings=calcStandings(gMatches);
                 const round=groupRounds[g]||"1";
-                const roundMatches=gMatches.filter(m=>m.matchday===round);
+                const roundMatches=gMatches.filter(m=>String(m.matchday)===String(round));
 
                 return (
                   <div key={g} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
