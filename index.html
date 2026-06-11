@@ -21,7 +21,7 @@
     // ====================== CONFIG DO FIREBASE ======================
     const firebaseConfig = {
       apiKey: "AIzaSyBQUBb2rQ5OFrr86GUpGqlb3Dmp8NLYww0",
-      authDomain: "bolao-hc-copa-2026.vercel.app",
+      authDomain: "bolao-hc-copa-2026.firebaseapp.com",
       projectId: "bolao-hc-copa-2026",
       storageBucket: "bolao-hc-copa-2026.firebasestorage.app",
       messagingSenderId: "1021056019416",
@@ -190,35 +190,38 @@
 
       // ---- AUTH ----
       useEffect(() => {
-        const init = async () => {
-          const unsub = auth.onAuthStateChanged(async (u) => {
-            if (u) {
-              setUser(u);
-              try {
-                const ref = db.collection("users").doc(u.uid);
-                const snap = await ref.get();
-                if (!snap.exists) {
-                  setNeedName(true);
-                } else {
-                  setProfile(snap.data());
-                  setNeedName(false);
-                }
-              } catch (e) {
-                setNeedName(true);
-              }
-            } else {
-              setUser(null);
-              setProfile(null);
-              setNeedName(false);
-            }
-            setLoginInProgress(false);
-            setAuthLoading(false);
-          });
-          return unsub;
-        };
+        // Captura o retorno do redirect do Google
+        auth.getRedirectResult().catch(e => {
+          if (e.code !== 'auth/no-auth-event') {
+            setMsg("Erro no login: " + e.message);
+          }
+        });
 
-        const unsubPromise = init();
-        return () => { unsubPromise.then(unsub => unsub && unsub()); };
+        const unsub = auth.onAuthStateChanged(async (u) => {
+          if (u) {
+            setUser(u);
+            try {
+              const ref = db.collection("users").doc(u.uid);
+              const snap = await ref.get();
+              if (!snap.exists) {
+                setNeedName(true);
+              } else {
+                setProfile(snap.data());
+                setNeedName(false);
+              }
+            } catch (e) {
+              console.error("Erro ao buscar perfil:", e);
+              setNeedName(true);
+            }
+          } else {
+            setUser(null);
+            setProfile(null);
+            setNeedName(false);
+          }
+          setLoginInProgress(false);
+          setAuthLoading(false);
+        });
+        return unsub;
       }, []);
 
       // ---- DADOS ----
@@ -239,7 +242,7 @@
       const login = async () => {
         try {
           setLoginInProgress(true);
-          await auth.signInWithPopup(provider);
+          await auth.signInWithRedirect(provider);
         } catch (e) {
           setLoginInProgress(false);
           setMsg("Erro no login: " + e.message);
