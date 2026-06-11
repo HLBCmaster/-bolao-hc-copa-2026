@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bolão HC Copa 2026</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" data-presets="react">
+    const { useState, useEffect } = React;
+
+    // ====================== CONFIG DO FIREBASE ======================
+    const firebaseConfig = {
+      apiKey: "AIzaSyBQUBb2rQ5OFrr86GUpGqlb3Dmp8NLYww0",
+      authDomain: "bolao-hc-copa-2026.firebaseapp.com",
+      projectId: "bolao-hc-copa-2026",
+      storageBucket: "bolao-hc-copa-2026.firebasestorage.app",
+      messagingSenderId: "1021056019416",
+      appId: "1:1021056019416:web:29770cb3b24329bc82a0ad",
+      measurementId: "G-ZHTT889F1E"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+    const provider = new firebase.auth.GoogleAuthProvider();
+
+    // ====================== CONSTANTES ======================
+    const ADMIN_EMAIL = "hugoleonardobc@gmail.com";
+    const DEADLINE = new Date("2026-06-20T23:59:00-03:00"); // previsões finais
+    const PTS_EXATO = 15;
+    const PTS_RESULTADO = 10;
+    const PRED_PTS = { champion: 50, vicechampion: 30, third: 20, topscorer: 25, bestplayer: 40 };
+    const PRED_LABELS = [
+      { key: "champion", label: "🏆 Campeão" },
+      { key: "vicechampion", label: "🥈 Vice-campeão" },
+      { key: "third", label: "🥉 Terceiro lugar" },
+      { key: "topscorer", label: "⚽ Artilheiro" },
+      { key: "bestplayer", label: "🌟 Melhor Jogador" },
+    ];
+
+    // Times: nome em PT + bandeira
+    const T = {
+      "Mexico":{pt:"México",f:"🇲🇽"},"South Africa":{pt:"África do Sul",f:"🇿🇦"},"South Korea":{pt:"Coreia do Sul",f:"🇰🇷"},
+      "Canada":{pt:"Canadá",f:"🇨🇦"},"Qatar":{pt:"Catar",f:"🇶🇦"},"Switzerland":{pt:"Suíça",f:"🇨🇭"},
+      "Brazil":{pt:"Brasil",f:"🇧🇷"},"Morocco":{pt:"Marrocos",f:"🇲🇦"},"Haiti":{pt:"Haiti",f:"🇭🇹"},"Scotland":{pt:"Escócia",f:"🏴󠁧󠁢󠁳󠁣󠁴󠁿"},
+      "USA":{pt:"EUA",f:"🇺🇸"},"Paraguay":{pt:"Paraguai",f:"🇵🇾"},"Australia":{pt:"Austrália",f:"🇦🇺"},
+      "Germany":{pt:"Alemanha",f:"🇩🇪"},"Curaçao":{pt:"Curaçao",f:"🇨🇼"},"Ivory Coast":{pt:"Costa do Marfim",f:"🇨🇮"},"Ecuador":{pt:"Equador",f:"🇪🇨"},
+      "Netherlands":{pt:"Holanda",f:"🇳🇱"},"Japan":{pt:"Japão",f:"🇯🇵"},"Tunisia":{pt:"Tunísia",f:"🇹🇳"},
+      "Belgium":{pt:"Bélgica",f:"🇧🇪"},"Egypt":{pt:"Egito",f:"🇪🇬"},"Iran":{pt:"Irã",f:"🇮🇷"},"New Zealand":{pt:"Nova Zelândia",f:"🇳🇿"},
+      "Spain":{pt:"Espanha",f:"🇪🇸"},"Cape Verde":{pt:"Cabo Verde",f:"🇨🇻"},"Saudi Arabia":{pt:"Arábia Saudita",f:"🇸🇦"},"Uruguay":{pt:"Uruguai",f:"🇺🇾"},
+      "France":{pt:"França",f:"🇫🇷"},"Senegal":{pt:"Senegal",f:"🇸🇳"},"Norway":{pt:"Noruega",f:"🇳🇴"},
+      "Argentina":{pt:"Argentina",f:"🇦🇷"},"Algeria":{pt:"Argélia",f:"🇩🇿"},"Austria":{pt:"Áustria",f:"🇦🇹"},"Jordan":{pt:"Jordânia",f:"🇯🇴"},
+      "Portugal":{pt:"Portugal",f:"🇵🇹"},"Colombia":{pt:"Colômbia",f:"🇨🇴"},"Uzbekistan":{pt:"Uzbequistão",f:"🇺🇿"},
+      "England":{pt:"Inglaterra",f:"🏴󠁧󠁢󠁥󠁮󠁧󠁿"},"Croatia":{pt:"Croácia",f:"🇭🇷"},"Ghana":{pt:"Gana",f:"🇬🇭"},"Panama":{pt:"Panamá",f:"🇵🇦"},
+    };
+    const team = (name) => T[name] || { pt: name, f: "🎫" };
+
+    // ====================== 72 JOGOS DA FASE DE GRUPOS ======================
+    // [grupo, rodada, time1, time2, estádio, horário (ISO com fuso local do estádio)]
+    const RAW = [
+      ["A","Rod.1","Mexico","South Africa","Cidade do México","2026-06-11T13:00:00-06:00"],
+      ["A","Rod.1","South Korea","Vencedor Repescagem UEFA D","Guadalajara","2026-06-11T20:00:00-06:00"],
+      ["A","Rod.2","Vencedor Repescagem UEFA D","South Africa","Atlanta","2026-06-18T12:00:00-04:00"],
+      ["A","Rod.2","Mexico","South Korea","Guadalajara","2026-06-18T19:00:00-06:00"],
+      ["A","Rod.3","Vencedor Repescagem UEFA D","Mexico","Cidade do México","2026-06-24T19:00:00-06:00"],
+      ["A","Rod.3","South Africa","South Korea","Monterrey","2026-06-24T19:00:00-06:00"],
+      ["B","Rod.1","Canada","Vencedor Repescagem UEFA A","Toronto","2026-06-12T15:00:00-04:00"],
+      ["B","Rod.1","Qatar","Switzerland","San Francisco","2026-06-13T12:00:00-07:00"],
+      ["B","Rod.2","Switzerland","Vencedor Repescagem UEFA A","Los Angeles","2026-06-18T12:00:00-07:00"],
+      ["B","Rod.2","Canada","Qatar","Vancouver","2026-06-18T15:00:00-07:00"],
+      ["B","Rod.3","Switzerland","Canada","Vancouver","2026-06-24T12:00:00-07:00"],
+      ["B","Rod.3","Vencedor Repescagem UEFA A","Qatar","Seattle","2026-06-24T12:00:00-07:00"],
+      ["C","Rod.1","Brazil","Morocco","Nova York/Nova Jersey","2026-06-13T18:00:00-04:00"],
+      ["C","Rod.1","Haiti","Scotland","Boston","2026-06-13T21:00:00-04:00"],
+      ["C","Rod.2","Scotland","Morocco","Boston","2026-06-19T18:00:00-04:00"],
+      ["C","Rod.2","Brazil","Haiti","Filadélfia","2026-06-19T21:00:00-04:00"],
+      ["C","Rod.3","Scotland","Brazil","Miami","2026-06-24T18:00:00-04:00"],
+      ["C","Rod.3","Morocco","Haiti","Atlanta","2026-06-24T18:00:00-04:00"],
+      ["D","Rod.1","USA","Paraguay","Los Angeles","2026-06-12T18:00:00-07:00"],
+      ["D","Rod.1","Australia","Vencedor Repescagem UEFA C","Vancouver","2026-06-13T21:00:00-07:00"],
+      ["D","Rod.2","USA","Australia","Seattle","2026-06-19T12:00:00-07:00"],
+      ["D","Rod.2","Vencedor Repescagem UEFA C","Paraguay","San Francisco","2026-06-19T21:00:00-07:00"],
+      ["D","Rod.3","Vencedor Repescagem UEFA C","USA","Los Angeles","2026-06-25T19:00:00-07:00"],
+      ["D","Rod.3","Paraguay","Australia","San Francisco","2026-06-25T19:00:00-07:00"],
+      ["E","Rod.1","Germany","Curaçao","Houston","2026-06-14T12:00:00-05:00"],
+      ["E","Rod.1","Ivory Coast","Ecuador","Filadélfia","2026-06-14T19:00:00-04:00"],
+      ["E","Rod.2","Germany","Ivory Coast","Toronto","2026-06-20T16:00:00-04:00"],
+      ["E","Rod.2","Ecuador","Curaçao","Kansas City","2026-06-20T19:00:00-05:00"],
+      ["E","Rod.3","Curaçao","Ivory Coast","Filadélfia","2026-06-25T16:00:00-04:00"],
+      ["E","Rod.3","Ecuador","Germany","Nova York/Nova Jersey","2026-06-25T16:00:00-04:00"],
+      ["F","Rod.1","Netherlands","Japan","Dallas","2026-06-14T15:00:00-05:00"],
+      ["F","Rod.1","Vencedor Repescagem UEFA B","Tunisia","Monterrey","2026-06-14T20:00:00-06:00"],
+      ["F","Rod.2","Netherlands","Vencedor Repescagem UEFA B","Houston","2026-06-20T12:00:00-05:00"],
+      ["F","Rod.2","Tunisia","Japan","Monterrey","2026-06-20T22:00:00-06:00"],
+      ["F","Rod.3","Japan","Vencedor Repescagem UEFA B","Dallas","2026-06-25T18:00:00-05:00"],
+      ["F","Rod.3","Tunisia","Netherlands","Kansas City","2026-06-25T18:00:00-05:00"],
+      ["G","Rod.1","Belgium","Egypt","Seattle","2026-06-15T12:00:00-07:00"],
+      ["G","Rod.1","Iran","New Zealand","Los Angeles","2026-06-15T18:00:00-07:00"],
+      ["G","Rod.2","Belgium","Iran","Los Angeles","2026-06-21T12:00:00-07:00"],
+      ["G","Rod.2","New Zealand","Egypt","Vancouver","2026-06-21T18:00:00-07:00"],
+      ["G","Rod.3","Egypt","Iran","Seattle","2026-06-26T20:00:00-07:00"],
+      ["G","Rod.3","New Zealand","Belgium","Vancouver","2026-06-26T20:00:00-07:00"],
+      ["H","Rod.1","Spain","Cape Verde","Atlanta","2026-06-15T12:00:00-04:00"],
+      ["H","Rod.1","Saudi Arabia","Uruguay","Miami","2026-06-15T18:00:00-04:00"],
+      ["H","Rod.2","Spain","Saudi Arabia","Atlanta","2026-06-21T12:00:00-04:00"],
+      ["H","Rod.2","Uruguay","Cape Verde","Miami","2026-06-21T18:00:00-04:00"],
+      ["H","Rod.3","Cape Verde","Saudi Arabia","Houston","2026-06-26T19:00:00-05:00"],
+      ["H","Rod.3","Uruguay","Spain","Guadalajara","2026-06-26T18:00:00-06:00"],
+      ["I","Rod.1","France","Senegal","Nova York/Nova Jersey","2026-06-16T15:00:00-04:00"],
+      ["I","Rod.1","Vencedor Repescagem CONMEBOL/etc 2","Norway","Boston","2026-06-16T18:00:00-04:00"],
+      ["I","Rod.2","France","Vencedor Repescagem CONMEBOL/etc 2","Filadélfia","2026-06-22T17:00:00-04:00"],
+      ["I","Rod.2","Norway","Senegal","Nova York/Nova Jersey","2026-06-22T20:00:00-04:00"],
+      ["I","Rod.3","Norway","France","Boston","2026-06-26T15:00:00-04:00"],
+      ["I","Rod.3","Senegal","Vencedor Repescagem CONMEBOL/etc 2","Toronto","2026-06-26T15:00:00-04:00"],
+      ["J","Rod.1","Argentina","Algeria","Kansas City","2026-06-16T20:00:00-05:00"],
+      ["J","Rod.1","Austria","Jordan","San Francisco","2026-06-16T21:00:00-07:00"],
+      ["J","Rod.2","Argentina","Austria","Dallas","2026-06-22T12:00:00-05:00"],
+      ["J","Rod.2","Jordan","Algeria","San Francisco","2026-06-22T20:00:00-07:00"],
+      ["J","Rod.3","Algeria","Austria","Kansas City","2026-06-27T21:00:00-05:00"],
+      ["J","Rod.3","Jordan","Argentina","Dallas","2026-06-27T21:00:00-05:00"],
+      ["K","Rod.1","Portugal","Vencedor Repescagem CONMEBOL/etc 1","Houston","2026-06-17T12:00:00-05:00"],
+      ["K","Rod.1","Uzbekistan","Colombia","Cidade do México","2026-06-17T20:00:00-06:00"],
+      ["K","Rod.2","Portugal","Uzbekistan","Houston","2026-06-23T12:00:00-05:00"],
+      ["K","Rod.2","Colombia","Vencedor Repescagem CONMEBOL/etc 1","Guadalajara","2026-06-23T20:00:00-06:00"],
+      ["K","Rod.3","Colombia","Portugal","Miami","2026-06-27T19:30:00-04:00"],
+      ["K","Rod.3","Vencedor Repescagem CONMEBOL/etc 1","Uzbekistan","Atlanta","2026-06-27T19:30:00-04:00"],
+      ["L","Rod.1","England","Croatia","Dallas","2026-06-17T15:00:00-05:00"],
+      ["L","Rod.1","Ghana","Panama","Toronto","2026-06-17T19:00:00-04:00"],
+      ["L","Rod.2","England","Ghana","Boston","2026-06-23T16:00:00-04:00"],
+      ["L","Rod.2","Panama","Croatia","Toronto","2026-06-23T19:00:00-04:00"],
+      ["L","Rod.3","Panama","England","Nova York/Nova Jersey","2026-06-27T17:00:00-04:00"],
+      ["L","Rod.3","Croatia","Ghana","Filadélfia","2026-06-27T17:00:00-04:00"],
+    ];
+    const SEED_MATCHES = RAW.map((r, i) => ({
+      id: "m" + String(i + 1).padStart(2, "0"),
+      group: r[0], matchday: r[1], team1: r[2], team2: r[3], ground: r[4], kickoff: r[5], result: null,
+    }));
+
+    // ====================== HELPERS ======================
+    const fmtDate = (iso) => new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" });
+    const fmtTime = (iso) => new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
+    const isLocked = (iso) => new Date() >= new Date(new Date(iso).getTime() - 10 * 60000); // 10 min antes
+
+    function outcome(s) {
+      if (!s || !s.includes("-")) return null;
+      const [a, b] = s.split("-").map(n => parseInt(n.trim(), 10));
+      if (isNaN(a) || isNaN(b)) return null;
+      return a > b ? "1" : a < b ? "2" : "x";
+    }
+    function betPoints(guess, result) {
+      if (!guess || !result) return 0;
+      if (guess.trim() === result.trim()) return PTS_EXATO;
+      const a = outcome(guess), b = outcome(result);
+      return a && b && a === b ? PTS_RESULTADO : 0;
+    }
+    function userTotal(u, matches, official) {
+      let t = 0;
+      matches.forEach(m => { if (m.result) t += betPoints((u.bets || {})[m.id]?.guess, m.result); });
+      if (official) PRED_LABELS.forEach(p => {
+        const ans = (official[p.key] || "").trim().toLowerCase();
+        const guess = ((u.predictions || {})[p.key] || "").trim().toLowerCase();
+        if (ans && guess && ans === guess) t += PRED_PTS[p.key];
+      });
+      return t;
+    }
+
+    // ====================== APP ======================
+    function App() {
+      const [loading, setLoading] = useState(true);
+      const [user, setUser] = useState(null);          // firebase auth user
+      const [profile, setProfile] = useState(null);    // doc users/{uid}
+      const [needName, setNeedName] = useState(false);
+      const [nameInput, setNameInput] = useState("");
+      const [matches, setMatches] = useState([]);
+      const [allUsers, setAllUsers] = useState([]);
+      const [official, setOfficial] = useState(null);
+      const [tab, setTab] = useState("placares");
+      const [drafts, setDrafts] = useState({});
+      const [resultDrafts, setResultDrafts] = useState({});
+      const [msg, setMsg] = useState("");
+
+      const isAdmin = user && user.email === ADMIN_EMAIL;
+      const deadlinePassed = new Date() > DEADLINE;
+      const daysLeft = Math.max(0, Math.ceil((DEADLINE - new Date()) / 86400000));
+
+      // ---- AUTH ----
+      useEffect(() => {
+        const unsub = auth.onAuthStateChanged(async (u) => {
+          setUser(u);
+          if (u) {
+            const ref = db.collection("users").doc(u.uid);
+            const snap = await ref.get();
+            if (!snap.exists) { setNeedName(true); }
+            else { setProfile(snap.data()); }
+          } else { setProfile(null); }
+          setLoading(false);
+        });
+        return unsub;
+      }, []);
+
+      // ---- DADOS (jogos, usuários, resultados oficiais) ----
+      useEffect(() => {
+        if (!user || needName) return;
+        const u1 = db.collection("matches").orderBy("kickoff").onSnapshot(s => {
+          setMatches(s.docs.map(d => d.data()));
+        });
+        const u2 = db.collection("users").onSnapshot(s => {
+          setAllUsers(s.docs.map(d => d.data()));
+        });
+        const u3 = db.collection("config").doc("official").onSnapshot(s => {
+          setOfficial(s.exists ? s.data() : {});
+        });
+        return () => { u1(); u2(); u3(); };
+      }, [user, needName]);
+
+      const login = async () => {
+        try { await auth.signInWithPopup(provider); }
+        catch (e) { setMsg("Erro no login: " + e.message); }
+      };
+      const logout = () => auth.signOut();
+
+      const saveName = async () => {
+        if (!nameInput.trim()) return;
+        const data = { uid: user.uid, email: user.email, displayName: nameInput.trim(), bets: {}, predictions: {}, predChanges: {}, predSubmitted: false, createdAt: Date.now() };
+        await db.collection("users").doc(user.uid).set(data);
+        setProfile(data); setNeedName(false);
+      };
+
+      // ---- SEMEAR JOGOS (admin) ----
+      const seed = async () => {
+        setMsg("Semeando 72 jogos...");
+        const batch = db.batch();
+        SEED_MATCHES.forEach(m => batch.set(db.collection("matches").doc(m.id), m));
+        await batch.commit();
+        setMsg("✅ 72 jogos cadastrados com sucesso!");
+      };
+
+      // ---- SALVAR APOSTA ----
+      const saveBet = async (m) => {
+        const cur = (profile.bets || {})[m.id] || { guess: "", changes: 0 };
+        const val = (drafts[m.id] !== undefined ? drafts[m.id] : cur.guess).trim();
+        if (!val || val === cur.guess) return;
+        const changes = cur.guess ? cur.changes + 1 : 0;
+        const newBets = { ...(profile.bets || {}), [m.id]: { guess: val, changes } };
+        await db.collection("users").doc(user.uid).update({ bets: newBets });
+        setProfile({ ...profile, bets: newBets });
+        setDrafts({ ...drafts, [m.id]: undefined });
+      };
+
+      // ---- LANÇAR RESULTADO (admin) ----
+      const saveResult = async (m) => {
+        const val = (resultDrafts[m.id] || "").trim();
+        await db.collection("matches").doc(m.id).update({ result: val || null });
+        setMsg("✅ Resultado de " + team(m.team1).pt + " x " + team(m.team2).pt + " salvo.");
+      };
+
+      // ---- PREVISÕES ----
+      const updatePred = (key, value) => {
+        if (deadlinePassed) return;
+        if (profile.predSubmitted && (profile.predChanges || {})[key] >= 1) return;
+        setProfile({ ...profile, predictions: { ...(profile.predictions || {}), [key]: value } });
+      };
+      const submitPred = async () => {
+        if (deadlinePassed) return;
+        const changes = { ...(profile.predChanges || {}) };
+        if (profile.predSubmitted) PRED_LABELS.forEach(p => { changes[p.key] = Math.min(1, (changes[p.key] || 0) + 1); });
+        const data = { predictions: profile.predictions || {}, predChanges: changes, predSubmitted: true };
+        await db.collection("users").doc(user.uid).update(data);
+        setProfile({ ...profile, ...data });
+        setMsg("✅ Previsões enviadas!");
+      };
+      const saveOfficial = async (key, value) => {
+        const data = { ...(official || {}), [key]: value };
+        await db.collection("config").doc("official").set(data, { merge: true });
+      };
+
+      // ====================== TELAS ======================
+      if (loading) return <Center><div className="text-white text-center"><div className="text-5xl animate-bounce">🏆</div><p className="mt-3 font-bold">Carregando...</p></div></Center>;
+
+      if (!user) return (
+        <Center>
+          <Card>
+            <Header />
+            <button onClick={login} className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-lg transition mt-2">Entrar com Google</button>
+            <a href="https://wa.me/5519981719881" target="_blank" className="block text-center mt-3 text-green-600 font-semibold text-sm">Dúvidas? WhatsApp (19) 98171-9881</a>
+            <p className="text-xs text-gray-400 text-center mt-3">Criado por HCmaster</p>
+            {msg && <p className="text-xs text-red-500 text-center mt-2">{msg}</p>}
+          </Card>
+        </Center>
+      );
+
+      if (needName) return (
+        <Center>
+          <Card>
+            <Header />
+            <label className="block text-sm font-semibold text-gray-700 mb-1 mt-2">Como quer ser chamado?</label>
+            <input value={nameInput} onChange={e => setNameInput(e.target.value)} onKeyDown={e => e.key === "Enter" && saveName()} placeholder="ex: João, Mari, Carlão..." className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-green-500 focus:outline-none" autoFocus />
+            <p className="text-xs text-gray-500 mt-1">Este nome aparece no ranking</p>
+            <button onClick={saveName} disabled={!nameInput.trim()} className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white font-bold py-3 rounded-lg transition mt-3">Continuar</button>
+          </Card>
+        </Center>
+      );
+
+      const sorted = [...allUsers].map(u => ({ ...u, pts: userTotal(u, matches, official) })).sort((a, b) => b.pts - a.pts);
+      const myPts = userTotal(profile, matches, official);
+      const tabs = [["placares","📊 Placares"],["acomp","👀 Acompanhamento"],["pred","🌟 Previsões"],["rank","🏆 Ranking"],["regras","📜 Regras"]];
+      if (isAdmin) tabs.push(["admin","⚙️ Admin"]);
+
+      return (
+        <div className="min-h-screen bg-gray-50">
+          {/* HEADER */}
+          <header className="bg-gradient-to-r from-green-500 to-yellow-400 text-white shadow sticky top-0 z-20">
+            <div className="max-w-3xl mx-auto px-4 py-3 flex justify-between items-center">
+              <div className="flex items-center gap-2"><span className="text-2xl">🏆</span><div><h1 className="font-bold leading-tight">Bolão HC Copa 2026</h1><p className="text-xs opacity-90">Criado por HCmaster</p></div></div>
+              <div className="flex items-center gap-2">
+                <div className="text-right"><p className="text-sm font-semibold">{profile.displayName}</p><p className="text-xs opacity-90">{myPts} pts</p></div>
+                <button onClick={logout} className="bg-red-500 hover:bg-red-600 text-xs px-3 py-2 rounded-lg">Sair</button>
+              </div>
+            </div>
+            <div className="max-w-3xl mx-auto px-4 pb-2"><div className="bg-black/20 rounded p-2 text-xs flex justify-between flex-wrap gap-1">
+              <span>📍 Fase de Grupos</span><span>🎮 {matches.filter(m=>m.result).length}/{matches.length} jogos</span>
+              <span>⏱️ Previsões: {deadlinePassed ? "encerradas" : daysLeft + " dias"}</span>
+            </div></div>
+          </header>
+
+          {/* NAV */}
+          <nav className="bg-white border-b sticky top-[92px] z-10 overflow-x-auto">
+            <div className="max-w-3xl mx-auto px-2 flex">
+              {tabs.map(([id, lbl]) => (
+                <button key={id} onClick={() => setTab(id)} className={"px-3 py-3 text-sm font-semibold whitespace-nowrap border-b-4 " + (tab === id ? "border-green-500 text-green-600" : "border-transparent text-gray-500")}>{lbl}</button>
+              ))}
+            </div>
+          </nav>
+
+          <main className="max-w-3xl mx-auto px-4 py-5">
+            {msg && <div className="bg-blue-50 border border-blue-200 text-blue-800 text-sm rounded-lg p-3 mb-4 flex justify-between"><span>{msg}</span><button onClick={()=>setMsg("")} className="font-bold">✕</button></div>}
+
+            {matches.length === 0 && !isAdmin && <p className="text-center text-gray-500 py-10">Os jogos ainda não foram cadastrados pelo organizador. Volte em breve! ⚽</p>}
+
+            {/* PLACARES */}
+            {tab === "placares" && matches.map(m => {
+              const bet = (profile.bets || {})[m.id] || { guess: "", changes: 0 };
+              const locked = isLocked(m.kickoff);
+              const canEdit = !locked && bet.changes < 1;
+              const pts = m.result ? betPoints(bet.guess, m.result) : null;
+              return (
+                <div key={m.id} className="bg-white rounded-xl shadow-sm mb-3 overflow-hidden border border-gray-100">
+                  <div className="bg-gray-50 px-3 py-2 flex justify-between items-center text-xs text-gray-500">
+                    <span>Grupo {m.group} · {m.matchday} · {fmtDate(m.kickoff)} {fmtTime(m.kickoff)} (SP)</span>
+                    {m.result ? <span className={"font-bold px-2 py-0.5 rounded-full " + (pts > 0 ? "bg-green-100 text-green-700" : "bg-gray-200")}>{pts > 0 ? "+" + pts : "0"} pts</span>
+                      : locked ? <span className="font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">🔒 Fechado</span>
+                      : <span className="font-bold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">⏰ Aberto</span>}
+                  </div>
+                  <div className="p-3">
+                    <Row flag={team(m.team1).f} name={team(m.team1).pt} score={m.result ? m.result.split("-")[0] : null} />
+                    <Row flag={team(m.team2).f} name={team(m.team2).pt} score={m.result ? m.result.split("-")[1] : null} />
+                    <p className="text-xs text-gray-400 mt-1">📍 {m.ground}</p>
+                    {m.result ? (
+                      <div className="mt-2 text-sm bg-gray-50 rounded p-2 flex justify-between">
+                        <span>Sua aposta: <b className={pts > 0 ? "text-green-600" : "text-red-500"}>{bet.guess || "—"}</b></span>
+                        <span>{pts === PTS_EXATO ? "🎯 Exato!" : pts === PTS_RESULTADO ? "📌 Resultado" : "❌"}</span>
+                      </div>
+                    ) : canEdit ? (
+                      <div className="mt-2 flex gap-2">
+                        <input value={drafts[m.id] !== undefined ? drafts[m.id] : bet.guess} onChange={e => setDrafts({ ...drafts, [m.id]: e.target.value })} placeholder="2-1" className="flex-1 px-3 py-2 text-center text-lg font-bold border-2 border-gray-200 rounded-lg focus:border-green-500 focus:outline-none" />
+                        <button onClick={() => saveBet(m)} className="bg-green-500 hover:bg-green-600 text-white font-bold px-4 rounded-lg">{bet.guess ? "Alterar" : "Apostar"}</button>
+                      </div>
+                    ) : (
+                      <div className="mt-2 text-sm bg-orange-50 rounded p-2 flex justify-between"><span>Sua aposta: <b>{bet.guess || "não apostou"}</b></span><span className="text-xs text-orange-600">{bet.changes >= 1 ? "alteração usada" : "fechado"}</span></div>
+                    )}
+                    {bet.guess && canEdit && <p className="text-xs text-gray-400 mt-1">⚠️ Você ainda pode alterar 1 vez.</p>}
+
+                    {isAdmin && (
+                      <div className="mt-2 flex gap-2 bg-purple-50 rounded p-2">
+                        <input value={resultDrafts[m.id] !== undefined ? resultDrafts[m.id] : (m.result || "")} onChange={e => setResultDrafts({ ...resultDrafts, [m.id]: e.target.value })} placeholder="resultado 2-1" className="flex-1 px-2 py-1 text-center border rounded" />
+                        <button onClick={() => saveResult(m)} className="bg-purple-600 text-white text-sm px-3 rounded">Lançar</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* ACOMPANHAMENTO */}
+            {tab === "acomp" && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-2">
+                  <Stat n={myPts} l="Seus Pontos" c="green" />
+                  <Stat n={(sorted.findIndex(u => u.uid === user.uid) + 1) + "º"} l="Posição" c="purple" />
+                  <Stat n={Object.values(profile.bets || {}).filter(b => b.guess).length} l="Apostas" c="blue" />
+                </div>
+                <Box title="⏰ Próximos jogos">
+                  {matches.filter(m => !m.result && !isLocked(m.kickoff)).slice(0, 6).map(m => {
+                    const b = (profile.bets || {})[m.id];
+                    return <div key={m.id} className="flex justify-between items-center border-l-4 border-yellow-400 bg-yellow-50 rounded-r px-3 py-2 mb-2 text-sm">
+                      <span>{team(m.team1).f} {team(m.team1).pt} x {team(m.team2).pt} {team(m.team2).f}<br/><span className="text-xs text-gray-500">{fmtDate(m.kickoff)} {fmtTime(m.kickoff)}</span></span>
+                      <span className={"text-xs font-bold px-2 py-1 rounded " + (b?.guess ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-500")}>{b?.guess || "sem aposta"}</span>
+                    </div>;
+                  })}
+                </Box>
+                <Box title="✅ Resultados recentes">
+                  {matches.filter(m => m.result).slice(-6).reverse().map(m => {
+                    const b = (profile.bets || {})[m.id] || {};
+                    const p = betPoints(b.guess, m.result);
+                    return <div key={m.id} className={"flex justify-between items-center border-l-4 rounded-r px-3 py-2 mb-2 text-sm " + (p > 0 ? "border-green-500 bg-green-50" : "border-red-400 bg-red-50")}>
+                      <span>{team(m.team1).f} {team(m.team1).pt} <b>{m.result}</b> {team(m.team2).pt} {team(m.team2).f}<br/><span className="text-xs text-gray-500">sua aposta: {b.guess || "—"}</span></span>
+                      <span className={"font-bold " + (p > 0 ? "text-green-600" : "text-red-500")}>{p > 0 ? "+" + p : "0"}</span>
+                    </div>;
+                  })}
+                </Box>
+              </div>
+            )}
+
+            {/* PREVISÕES */}
+            {tab === "pred" && (
+              <div>
+                <div className="flex justify-between items-center mb-3">
+                  <h2 className="text-xl font-bold">🌟 Previsões Finais</h2>
+                  {deadlinePassed ? <span className="bg-gray-200 text-gray-600 text-sm font-bold px-3 py-2 rounded-lg">🔒 Encerradas</span>
+                    : <button onClick={submitPred} className="bg-green-500 hover:bg-green-600 text-white text-sm font-bold px-4 py-2 rounded-lg">📤 {profile.predSubmitted ? "Atualizar" : "Enviar"}</button>}
+                </div>
+                <div className={"text-xs rounded-lg p-3 mb-3 " + (profile.predSubmitted ? "bg-green-50 text-green-800" : "bg-yellow-50 text-yellow-800")}>
+                  Apostar/alterar até <b>20/06/2026 23h59 (SP)</b> · {deadlinePassed ? "prazo encerrado" : "faltam " + daysLeft + " dias"} · cada campo pode ser alterado 1 vez após enviar.
+                </div>
+                {PRED_LABELS.map(p => {
+                  const used = profile.predSubmitted && (profile.predChanges || {})[p.key] >= 1;
+                  return <div key={p.key} className="bg-white rounded-xl shadow-sm p-3 mb-2">
+                    <div className="flex justify-between"><span className="font-bold">{p.label}</span><span className="text-xs text-green-600 font-semibold">+{PRED_PTS[p.key]} pts</span></div>
+                    <input value={(profile.predictions || {})[p.key] || ""} onChange={e => updatePred(p.key, e.target.value)} disabled={used || deadlinePassed} placeholder="Digite..." className={"w-full mt-2 px-3 py-2 border-2 rounded-lg font-semibold focus:outline-none " + (used || deadlinePassed ? "bg-gray-100 border-gray-100 text-gray-500" : "border-gray-200 focus:border-green-500")} />
+                    {used && <p className="text-xs text-red-500 mt-1">🔒 Alteração já utilizada</p>}
+                  </div>;
+                })}
+              </div>
+            )}
+
+            {/* RANKING */}
+            {tab === "rank" && (
+              <div>
+                <h2 className="text-xl font-bold mb-3">🏆 Ranking Geral</h2>
+                {sorted.map((u, i) => (
+                  <div key={u.uid} className={"flex justify-between items-center rounded-xl shadow-sm p-3 mb-2 " + (u.uid === user.uid ? "bg-green-50 border-2 border-green-500" : "bg-white")}>
+                    <div className="flex items-center gap-3">
+                      <div className={"w-9 h-9 rounded-full flex items-center justify-center font-bold text-white " + (i===0?"bg-yellow-500":i===1?"bg-gray-400":i===2?"bg-orange-500":"bg-gray-300")}>{i+1}</div>
+                      <span className="font-bold">{u.displayName}{u.uid === user.uid && <span className="text-xs text-green-600 ml-1">(você)</span>}</span>
+                    </div>
+                    <span className="text-xl font-bold text-green-600">{u.pts}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* REGRAS */}
+            {tab === "regras" && (
+              <div className="space-y-3 text-sm">
+                <Box title="ℹ️ Geral"><ul className="space-y-1 text-gray-600"><li>🏆 Copa do Mundo 2026 — bolão individual</li><li>👥 Até 50 participantes · sem prêmios</li><li>🕐 Pode entrar durante a Copa (começa com 0 pts)</li></ul></Box>
+                <Box title="📊 Placares"><ul className="space-y-1 text-gray-600"><li>✅ Aposta até 10 min antes de cada jogo (horário de SP)</li><li>🔄 Alteração: 1 vez por jogo</li><li>🎯 Placar exato +15 · 📌 Resultado +10</li></ul></Box>
+                <Box title="🌟 Previsões"><ul className="space-y-1 text-gray-600"><li>📅 Até 20/06/2026 23h59 (SP)</li><li>🔄 1 alteração por campo após enviar</li><li>Campeão +50 · Vice +30 · 3º +20 · Artilheiro +25 · Melhor +40</li></ul></Box>
+                <Box title="💬 Dúvidas?"><a href="https://wa.me/5519981719881" target="_blank" className="inline-block bg-green-500 text-white font-bold py-2 px-5 rounded-lg">WhatsApp (19) 98171-9881</a><p className="text-xs text-gray-500 mt-2">Criado por HCmaster</p></Box>
+              </div>
+            )}
+
+            {/* ADMIN */}
+            {tab === "admin" && isAdmin && (
+              <div className="space-y-4">
+                <Box title="⚙️ Cadastro dos jogos">
+                  <p className="text-sm text-gray-600 mb-2">Jogos no banco: <b>{matches.length}</b>. Clique abaixo para cadastrar os 72 jogos (faça só uma vez).</p>
+                  <button onClick={seed} className="bg-purple-600 text-white font-bold px-4 py-2 rounded-lg">Semear 72 jogos</button>
+                </Box>
+                <Box title="🏅 Resultados finais (para pontuar as previsões)">
+                  <p className="text-xs text-gray-500 mb-2">Preencha ao fim da Copa. Use exatamente o mesmo nome que os jogadores digitaram.</p>
+                  {PRED_LABELS.map(p => (
+                    <div key={p.key} className="flex items-center gap-2 mb-2">
+                      <span className="w-32 text-sm">{p.label}</span>
+                      <input defaultValue={(official || {})[p.key] || ""} onBlur={e => saveOfficial(p.key, e.target.value)} placeholder="resposta oficial" className="flex-1 px-2 py-1 border rounded text-sm" />
+                    </div>
+                  ))}
+                  <p className="text-xs text-gray-400">Salva automaticamente ao clicar fora do campo.</p>
+                </Box>
+                <p className="text-xs text-gray-500">💡 Para lançar placares dos jogos, vá na aba <b>Placares</b> — só você vê o campo roxo "Lançar".</p>
+              </div>
+            )}
+          </main>
+          <footer className="text-center text-xs text-gray-400 py-5">⚽ Bolão HC Copa 2026 · HCmaster · <a href="https://wa.me/5519981719881" className="text-green-600">WhatsApp</a></footer>
+        </div>
+      );
+    }
+
+    // ---- componentes auxiliares ----
+    const Center = ({ children }) => <div className="min-h-screen bg-gradient-to-br from-green-500 via-yellow-400 to-green-600 flex items-center justify-center p-4">{children}</div>;
+    const Card = ({ children }) => <div className="bg-white rounded-2xl shadow-2xl p-7 max-w-sm w-full">{children}</div>;
+    const Header = () => <div className="text-center mb-3"><div className="text-5xl">🏆</div><h1 className="text-2xl font-bold text-gray-800 mt-2">Bolão HC Copa 2026</h1><p className="text-gray-500 text-sm">Faça suas previsões e compete!</p></div>;
+    const Row = ({ flag, name, score }) => <div className="flex items-center gap-3 py-1"><div className={"w-11 h-11 rounded-lg flex items-center justify-center text-xl font-bold " + (score !== null ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-400")}>{score !== null ? score : "–"}</div><span className="text-xl">{flag}</span><span className="font-bold text-gray-800">{name}</span></div>;
+    const Stat = ({ n, l, c }) => <div className="bg-white rounded-lg shadow-sm p-3 text-center"><p className={"text-2xl font-bold text-" + c + "-600"}>{n}</p><p className="text-xs text-gray-500">{l}</p></div>;
+    const Box = ({ title, children }) => <div className="bg-white rounded-xl shadow-sm p-4"><h3 className="font-bold text-gray-800 mb-2">{title}</h3>{children}</div>;
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
