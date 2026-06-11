@@ -190,17 +190,14 @@
 
       // ---- AUTH ----
       useEffect(() => {
-        // Captura o retorno do redirect do Google
-        auth.getRedirectResult().catch(e => {
-          if (e.code !== 'auth/no-auth-event') {
-            setMsg("Erro no login: " + e.message);
-          }
-        });
-
-        const unsub = auth.onAuthStateChanged(async (u) => {
-          if (u) {
-            setUser(u);
-            try {
+        const init = async () => {
+          try {
+            // Primeiro processa o resultado do redirect (se vier do Google)
+            const result = await auth.getRedirectResult();
+            if (result && result.user) {
+              // Veio de um redirect — processa o perfil imediatamente
+              const u = result.user;
+              setUser(u);
               const ref = db.collection("users").doc(u.uid);
               const snap = await ref.get();
               if (!snap.exists) {
@@ -209,19 +206,45 @@
                 setProfile(snap.data());
                 setNeedName(false);
               }
-            } catch (e) {
-              console.error("Erro ao buscar perfil:", e);
-              setNeedName(true);
+              setAuthLoading(false);
+              setLoginInProgress(false);
+              return;
             }
-          } else {
-            setUser(null);
-            setProfile(null);
-            setNeedName(false);
+          } catch (e) {
+            if (e.code !== 'auth/no-auth-event') {
+              setMsg("Erro no login: " + e.message);
+            }
           }
-          setLoginInProgress(false);
-          setAuthLoading(false);
-        });
-        return unsub;
+
+          // Fluxo normal: escuta mudanças de auth
+          const unsub = auth.onAuthStateChanged(async (u) => {
+            if (u) {
+              setUser(u);
+              try {
+                const ref = db.collection("users").doc(u.uid);
+                const snap = await ref.get();
+                if (!snap.exists) {
+                  setNeedName(true);
+                } else {
+                  setProfile(snap.data());
+                  setNeedName(false);
+                }
+              } catch (e) {
+                setNeedName(true);
+              }
+            } else {
+              setUser(null);
+              setProfile(null);
+              setNeedName(false);
+            }
+            setLoginInProgress(false);
+            setAuthLoading(false);
+          });
+          return unsub;
+        };
+
+        const unsubPromise = init();
+        return () => { unsubPromise.then(unsub => unsub && unsub()); };
       }, []);
 
       // ---- DADOS ----
