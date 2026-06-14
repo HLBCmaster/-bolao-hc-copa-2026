@@ -479,13 +479,13 @@
     const myRank=sorted.findIndex(u=>u.uid===user.uid)+1;
     const myBadges=getBadges(profile,matches,official,myRank-1,sorted.length);
     const groups=[...new Set(matches.map(m=>m.group))].sort();
-    const tabs=[["placares","Placares"],["grupos","Grupos"],["acomp","Acomp."],["pred","Previsões"],["rank","Ranking"],["badges","Badges"],["regras","Regras"]];
+    const tabs=[["placares","Placares"],["grupos","Grupos"],["pred","Previsões"],["rank","Ranking"],["badges","Conquistas"],["acomp","Acomp."],["regras","Regras"]];
     if(isAdmin) tabs.push(["admin","Admin"]);
     const currentLabel=(tabs.find(t=>t[0]===tab)||["","Menu"])[1];
 
-    // placares divididos
-    const upcoming=matches.filter(m=>!isPast(m.kickoff)&&!m.result);
-    const past=matches.filter(m=>isPast(m.kickoff)||m.result);
+    // placares: encerrados (com resultado) ficam consolidados; abertos + em andamento ficam na tela
+    const ended=matches.filter(m=>m.result);
+    const openMatches=matches.filter(m=>!m.result);
 
     return (
       <div className="min-h-screen bg-gray-50">
@@ -519,11 +519,11 @@
               ))}
             </div>
             {/* mobile */}
-            <div className="md:hidden flex items-center justify-between py-3">
-              <span className="font-bold text-gray-800">{currentLabel}</span>
+            <div className="md:hidden flex items-center gap-3 py-3">
               <button onClick={()=>setMenuOpen(!menuOpen)} className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
               </button>
+              <span className="font-bold text-gray-800">{currentLabel}</span>
             </div>
             {menuOpen&&(
               <div className="md:hidden pb-2 grid grid-cols-2 gap-2">
@@ -543,19 +543,21 @@
           {/* ===== PLACARES ===== */}
           {tab==="placares" && matches.length>0 && (
             <div>
-              {upcoming.length>0
-                ? upcoming.map(m=><MatchCard key={m.id} m={m} bet={(profile.bets||{})[m.id]||{guess:"",changes:0}} isAdmin={isAdmin} resultDrafts={resultDrafts} setResultDrafts={setResultDrafts} saveResult={saveResult} saveBet={saveBet} />)
-                : <p className="text-center text-gray-400 py-6 text-sm">Nenhum jogo aberto no momento. 🎉</p>
-              }
-              {past.length>0&&(
-                <div className="mt-4">
+              {/* Encerrados — consolidados no topo */}
+              {ended.length>0&&(
+                <div className="mb-4">
                   <button onClick={()=>setShowPast(!showPast)} className="w-full flex items-center justify-between bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">
-                    <span>{showPast?"▾":"▸"} Jogos encerrados / em andamento ({past.length})</span>
+                    <span>{showPast?"▾":"▸"} Jogos encerrados ({ended.length})</span>
                     <span className="text-xs text-gray-400">{showPast?"ocultar":"ver"}</span>
                   </button>
-                  {showPast&&(<div className="mt-3">{past.slice().reverse().map(m=><MatchCard key={m.id} m={m} bet={(profile.bets||{})[m.id]||{guess:"",changes:0}} isAdmin={isAdmin} resultDrafts={resultDrafts} setResultDrafts={setResultDrafts} saveResult={saveResult} saveBet={saveBet} />)}</div>)}
+                  {showPast&&(<div className="mt-3">{ended.map(m=><MatchCard key={m.id} m={m} bet={(profile.bets||{})[m.id]||{guess:"",changes:0}} isAdmin={isAdmin} resultDrafts={resultDrafts} setResultDrafts={setResultDrafts} saveResult={saveResult} saveBet={saveBet} />)}</div>)}
                 </div>
               )}
+              {/* Abertos + em andamento — sempre na tela */}
+              {openMatches.length>0
+                ? openMatches.map(m=><MatchCard key={m.id} m={m} bet={(profile.bets||{})[m.id]||{guess:"",changes:0}} isAdmin={isAdmin} resultDrafts={resultDrafts} setResultDrafts={setResultDrafts} saveResult={saveResult} saveBet={saveBet} />)
+                : <p className="text-center text-gray-400 py-6 text-sm">Todos os jogos já foram encerrados. 🏁</p>
+              }
             </div>
           )}
 
@@ -714,7 +716,7 @@
           {/* ===== BADGES ===== */}
           {tab==="badges"&&(
             <div>
-              <h2 className="text-lg font-bold text-gray-900 mb-1">🏅 Suas Badges</h2>
+              <h2 className="text-lg font-bold text-gray-900 mb-1">🏅 Suas Conquistas</h2>
               <p className="text-xs text-gray-400 mb-4">Conquistas visuais — {myBadges.filter(b=>b.earned).length}/{myBadges.length} desbloqueadas</p>
               <div className="grid grid-cols-2 gap-3">
                 {myBadges.map((b,i)=>(
@@ -736,7 +738,7 @@
                 {t:"ℹ️ Geral",items:["🏆 Copa do Mundo 2026 — bolão individual","👥 Até 50 participantes · sem prêmios","🕐 Pode entrar durante a Copa (começa com 0 pts)"]},
                 {t:"📊 Placares",items:["✅ Aposta até 10 min antes de cada jogo (horário SP)","🔄 Alteração: 1 vez por jogo","🎯 Placar exato +15 pts · 📌 Resultado certo +10 pts"]},
                 {t:"🌟 Previsões",items:["📅 Até 20/06/2026 às 23h59 (SP)","🔄 1 alteração por campo após enviar","Campeão +50 · Vice +30 · 3º +20 · Artilheiro +25 · Melhor +40"]},
-                {t:"🏅 Badges",items:["São apenas visuais (não dão pontos)","1 selo a cada 10 apostas e a cada 10 resultados certos","Conquistas por acertos, sequências e posição no ranking"]},
+                {t:"🏅 Conquistas",items:["São apenas visuais (não dão pontos)","1 selo a cada 10 apostas e a cada 10 resultados certos","Conquistas por acertos, sequências e posição no ranking"]},
               ].map(s=>(
                 <div key={s.t} className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100"><h3 className="font-bold text-gray-800 mb-2 text-sm">{s.t}</h3><ul className="space-y-1">{s.items.map((it,i)=><li key={i} className="text-xs text-gray-600">{it}</li>)}</ul></div>
               ))}
