@@ -328,6 +328,18 @@
     );
   }
 
+  // dropdown de seleção de time (preserva valor antigo digitado como texto)
+  const TeamSelect = ({ value, onChange, disabled, options }) => {
+    const opts = value && !options.includes(value) ? [value, ...options] : options;
+    return (
+      <select value={value||""} onChange={e=>onChange(e.target.value)} disabled={disabled}
+        className={"w-full px-3 py-2 border-2 rounded-xl text-sm font-medium focus:outline-none "+(disabled?"bg-gray-50 border-gray-100 text-gray-400 cursor-not-allowed":"border-gray-200 focus:border-emerald-400")}>
+        <option value="">Selecione o time...</option>
+        {opts.map((o,i)=><option key={i} value={o}>{o}</option>)}
+      </select>
+    );
+  };
+
   // ====================== APP ======================
   function App() {
     const [user,setUser]=useState(null);
@@ -479,6 +491,7 @@
     const myRank=sorted.findIndex(u=>u.uid===user.uid)+1;
     const myBadges=getBadges(profile,matches,official,myRank-1,sorted.length);
     const groups=[...new Set(matches.map(m=>m.group))].sort();
+    const teamOptions=[...new Set(matches.flatMap(m=>[m.team1,m.team2]))].map(tname).filter((v,i,a)=>a.indexOf(v)===i).sort((a,b)=>a.localeCompare(b,"pt"));
     const tabs=[["placares","Placares"],["grupos","Grupos"],["pred","Previsões"],["rank","Ranking"],["badges","Conquistas"],["acomp","Acomp."],["regras","Regras"]];
     if(isAdmin) tabs.push(["admin","Admin"]);
     const currentLabel=(tabs.find(t=>t[0]===tab)||["","Menu"])[1];
@@ -674,10 +687,12 @@
               </div>
               <div className={"text-xs rounded-xl p-3 mb-4 "+(profile.predSubmitted?"bg-emerald-50 text-emerald-700 border border-emerald-100":"bg-amber-50 text-amber-700 border border-amber-100")}>Apostar/alterar até <b>20/06/2026 23h59 (SP)</b> · {deadlinePassed?"prazo encerrado":"faltam "+daysLeft+" dias"} · 1 alteração por campo após enviar.</div>
               <div className="space-y-2">
-                {PRED_LABELS.map(p=>{const used=profile.predSubmitted&&(profile.predChanges||{})[p.key]>=1;return(
+                {PRED_LABELS.map(p=>{const used=profile.predSubmitted&&(profile.predChanges||{})[p.key]>=1;const isTeam=["champion","vicechampion","third"].includes(p.key);return(
                   <div key={p.key} className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
                     <div className="flex justify-between items-center mb-2"><span className="font-semibold text-gray-800">{p.label}</span><span className="text-xs bg-emerald-100 text-emerald-600 font-bold px-2 py-1 rounded-lg">+{PRED_PTS[p.key]} pts</span></div>
-                    <input value={(profile.predictions||{})[p.key]||""} onChange={e=>updatePred(p.key,e.target.value)} disabled={used||deadlinePassed} placeholder="Digite o nome..." className={"w-full px-3 py-2 border-2 rounded-xl text-sm font-medium focus:outline-none "+(used||deadlinePassed?"bg-gray-50 border-gray-100 text-gray-400 cursor-not-allowed":"border-gray-200 focus:border-emerald-400")} />
+                    {isTeam
+                      ? <TeamSelect value={(profile.predictions||{})[p.key]||""} onChange={v=>updatePred(p.key,v)} disabled={used||deadlinePassed} options={teamOptions} />
+                      : <input value={(profile.predictions||{})[p.key]||""} onChange={e=>updatePred(p.key,e.target.value)} disabled={used||deadlinePassed} placeholder="Digite o nome..." className={"w-full px-3 py-2 border-2 rounded-xl text-sm font-medium focus:outline-none "+(used||deadlinePassed?"bg-gray-50 border-gray-100 text-gray-400 cursor-not-allowed":"border-gray-200 focus:border-emerald-400")} />}
                     {used&&<p className="text-xs text-red-400 mt-1">🔒 Alteração já utilizada</p>}
                   </div>);})}
               </div>
@@ -832,7 +847,13 @@
               <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
                 <h3 className="font-bold text-gray-800 mb-2">🏅 Resultados finais (previsões)</h3>
                 <p className="text-xs text-gray-500 mb-3">Preencha ao fim da Copa. Salva ao clicar fora.</p>
-                {PRED_LABELS.map(p=>(<div key={p.key} className="flex items-center gap-2 mb-2"><span className="text-xs text-gray-600 w-36">{p.label}</span><input defaultValue={(official||{})[p.key]||""} onBlur={e=>saveOfficial(p.key,e.target.value)} placeholder="resposta oficial" className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-emerald-400" /></div>))}
+                {PRED_LABELS.map(p=>{const isTeam=["champion","vicechampion","third"].includes(p.key);return(
+                  <div key={p.key} className="flex items-center gap-2 mb-2">
+                    <span className="text-xs text-gray-600 w-36">{p.label}</span>
+                    {isTeam
+                      ? <select value={(official||{})[p.key]||""} onChange={e=>saveOfficial(p.key,e.target.value)} className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-emerald-400"><option value="">Selecione...</option>{teamOptions.map((o,i)=><option key={i} value={o}>{o}</option>)}</select>
+                      : <input defaultValue={(official||{})[p.key]||""} onBlur={e=>saveOfficial(p.key,e.target.value)} placeholder="resposta oficial" className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-emerald-400" />}
+                  </div>);})}
               </div>
               <p className="text-xs text-gray-400">💡 Para lançar placares use o campo roxo na aba <b>Placares</b>.</p>
             </div>
