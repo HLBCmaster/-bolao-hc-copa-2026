@@ -773,6 +773,61 @@
                   {allUsers.length===0&&<p className="text-xs text-gray-400">Nenhum participante ainda.</p>}
                 </div>
               </div>
+              {/* PREVISÕES ENVIADAS */}
+              <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
+                <h3 className="font-bold text-gray-800 mb-3">🌟 Previsões enviadas ({allUsers.filter(u=>u.predSubmitted).length}/{allUsers.length})</h3>
+                <div className="space-y-1.5">
+                  {[...allUsers].sort((a,b)=>(b.predSubmitted?1:0)-(a.predSubmitted?1:0)).map((u,i)=>(
+                    <div key={i} className="flex items-center justify-between text-sm">
+                      <span className="font-medium text-gray-700 truncate">{u.displayName||"(sem nome)"}</span>
+                      {u.predSubmitted
+                        ? <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full shrink-0">✅ enviou</span>
+                        : <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full shrink-0">⏳ pendente</span>}
+                    </div>
+                  ))}
+                  {allUsers.length===0&&<p className="text-xs text-gray-400">Nenhum participante ainda.</p>}
+                </div>
+              </div>
+
+              {/* GRÁFICOS GERAIS DE USABILIDADE */}
+              {(()=>{
+                const totalUsers=allUsers.length;
+                const submitted=allUsers.filter(u=>u.predSubmitted).length;
+                const totalBets=allUsers.reduce((s,u)=>s+Object.values(u.bets||{}).filter(b=>b&&b.guess).length,0);
+                const avgBets=totalUsers?Math.round(totalBets/totalUsers):0;
+                const tally=field=>{ const o={}; allUsers.forEach(u=>{ const v=(u.predictions||{})[field]; if(v&&v.trim()){ const k=v.trim(); o[k]=(o[k]||0)+1; } }); return Object.entries(o).sort((a,b)=>b[1]-a[1]).slice(0,6); };
+                const champList=tally("champion");
+                const scorerList=tally("topscorer");
+                const maxC=champList.length?champList[0][1]:1;
+                const maxS=scorerList.length?scorerList[0][1]:1;
+                const Bar=({label,count,max,color})=>(
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-600 w-24 truncate shrink-0">{label}</span>
+                    <div className="flex-1 bg-gray-100 rounded-full h-3 min-w-0"><div className="h-3 rounded-full" style={{width:(count/max*100)+"%",background:color}}></div></div>
+                    <span className="text-xs font-bold text-gray-600 w-6 text-right shrink-0">{count}</span>
+                  </div>
+                );
+                return (
+                  <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
+                    <h3 className="font-bold text-gray-800 mb-3">📊 Visão geral</h3>
+                    <div className="grid grid-cols-2 gap-2 mb-4">
+                      <div className="bg-emerald-50 rounded-xl p-3 text-center"><p className="text-2xl font-bold text-emerald-600">{totalUsers}</p><p className="text-xs text-gray-500">Participantes</p></div>
+                      <div className="bg-blue-50 rounded-xl p-3 text-center"><p className="text-2xl font-bold text-blue-600">{totalUsers?Math.round(submitted/totalUsers*100):0}%</p><p className="text-xs text-gray-500">Enviaram previsões</p></div>
+                      <div className="bg-purple-50 rounded-xl p-3 text-center"><p className="text-2xl font-bold text-purple-600">{totalBets}</p><p className="text-xs text-gray-500">Apostas totais</p></div>
+                      <div className="bg-amber-50 rounded-xl p-3 text-center"><p className="text-2xl font-bold text-amber-600">{avgBets}</p><p className="text-xs text-gray-500">Média por pessoa</p></div>
+                    </div>
+                    <p className="text-xs font-semibold text-gray-600 mb-2">🏆 Palpites de campeão</p>
+                    {champList.length===0
+                      ? <p className="text-xs text-gray-400 mb-4">Ninguém palpitou o campeão ainda.</p>
+                      : <div className="space-y-1.5 mb-4">{champList.map(([n,c],i)=><Bar key={i} label={tname(n)} count={c} max={maxC} color="#10b981" />)}</div>}
+                    <p className="text-xs font-semibold text-gray-600 mb-2">⚽ Palpites de artilheiro</p>
+                    {scorerList.length===0
+                      ? <p className="text-xs text-gray-400">Ninguém palpitou o artilheiro ainda.</p>
+                      : <div className="space-y-1.5">{scorerList.map(([n,c],i)=><Bar key={i} label={n} count={c} max={maxS} color="#8b5cf6" />)}</div>}
+                  </div>
+                );
+              })()}
+
               <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100"><h3 className="font-bold text-gray-800 mb-1">✏️ Renomear times de repescagem</h3><p className="text-xs text-gray-500">Vá na aba <b>Grupos</b> e clique no ✏️ ao lado do time.</p></div>
               <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
                 <h3 className="font-bold text-gray-800 mb-2">🏅 Resultados finais (previsões)</h3>
