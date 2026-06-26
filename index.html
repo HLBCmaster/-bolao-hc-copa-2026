@@ -58,10 +58,88 @@
   });
 
   // ── FLAGS ──
-  const FLAGS={Mexico:"mx","South Africa":"za","South Korea":"kr",Canada:"ca",Qatar:"qa",Switzerland:"ch",Brazil:"br",Morocco:"ma",Haiti:"ht",Scotland:"gb-sct",USA:"us",Paraguay:"py",Australia:"au",Germany:"de","Curaçao":"cw","Ivory Coast":"ci",Ecuador:"ec",Netherlands:"nl",Japan:"jp",Tunisia:"tn",Belgium:"be",Egypt:"eg",Iran:"ir","New Zealand":"nz",Spain:"es","Cape Verde":"cv","Saudi Arabia":"sa",Uruguay:"uy",France:"fr",Senegal:"sn",Norway:"no",Argentina:"ar",Algeria:"dz",Austria:"at",Jordan:"jo",Portugal:"pt",Colombia:"co",Uzbekistan:"uz",England:"gb-eng",Croatia:"hr",Ghana:"gh",Panama:"pa"};
-  const T={Mexico:"México","South Africa":"África do Sul","South Korea":"Coreia do Sul",Canada:"Canadá",Qatar:"Catar",Switzerland:"Suíça",Brazil:"Brasil",Morocco:"Marrocos",Haiti:"Haiti",Scotland:"Escócia",USA:"EUA",Paraguay:"Paraguai",Australia:"Austrália",Germany:"Alemanha","Curaçao":"Curaçao","Ivory Coast":"Costa do Marfim",Ecuador:"Equador",Netherlands:"Holanda",Japan:"Japão",Tunisia:"Tunísia",Belgium:"Bélgica",Egypt:"Egito",Iran:"Irã","New Zealand":"Nova Zelândia",Spain:"Espanha","Cape Verde":"Cabo Verde","Saudi Arabia":"Arábia Saudita",Uruguay:"Uruguai",France:"França",Senegal:"Senegal",Norway:"Noruega",Argentina:"Argentina",Algeria:"Argélia",Austria:"Áustria",Jordan:"Jordânia",Portugal:"Portugal",Colombia:"Colômbia",Uzbekistan:"Uzbequistão",England:"Inglaterra",Croatia:"Croácia",Ghana:"Gana",Panama:"Panamá"};
+  const FLAGS={
+    // Fase de grupos (confirmados)
+    Mexico:"mx","South Africa":"za","South Korea":"kr",Canada:"ca",Qatar:"qa",Switzerland:"ch",
+    Brazil:"br",Morocco:"ma",Haiti:"ht",Scotland:"gb-sct",USA:"us",Paraguay:"py",
+    Australia:"au",Germany:"de","Curaçao":"cw","Ivory Coast":"ci",Ecuador:"ec",Netherlands:"nl",
+    Japan:"jp",Tunisia:"tn",Belgium:"be",Egypt:"eg",Iran:"ir","New Zealand":"nz",
+    Spain:"es","Cape Verde":"cv","Saudi Arabia":"sa",Uruguay:"uy",France:"fr",Senegal:"sn",
+    Norway:"no",Argentina:"ar",Algeria:"dz",Austria:"at",Jordan:"jo",Portugal:"pt",
+    Colombia:"co",Uzbekistan:"uz",England:"gb-eng",Croatia:"hr",Ghana:"gh",Panama:"pa",
+    // Repescagem UEFA / possíveis classificados
+    Sweden:"se",Turkey:"tr",Italy:"it",Denmark:"dk",Poland:"pl",Ukraine:"ua",
+    Wales:"gb-wls",Slovakia:"sk",Greece:"gr",Serbia:"rs",Romania:"ro",Finland:"fi",
+    Hungary:"hu",Iceland:"is",Bulgaria:"bg",Slovenia:"si",Albania:"al",Montenegro:"me",
+    "Bosnia and Herzegovina":"ba","North Macedonia":"mk",Kosovo:"xk",Ireland:"ie",
+    "Czech Republic":"cz",
+    // Repescagem CONMEBOL
+    Bolivia:"bo",Chile:"cl",Venezuela:"ve",Peru:"pe",
+    // Repescagem CONCACAF
+    "Costa Rica":"cr",Honduras:"hn",Jamaica:"jm","El Salvador":"sv",Cuba:"cu",
+    // Repescagem CAF
+    Nigeria:"ng","DR Congo":"cd","Ivory Coast":"ci",Cameroon:"cm",Mali:"ml",
+    Zambia:"zm",Tanzania:"tz",Uganda:"ug",Kenya:"ke","Burkina Faso":"bf",
+    // Repescagem AFC
+    Iraq:"iq",Indonesia:"id",China:"cn",Iraq:"iq","United Arab Emirates":"ae",
+    // Outros possíveis
+    Venezuela:"ve",Trinidad:"tt",
+  };
+  const T={
+    Mexico:"México","South Africa":"África do Sul","South Korea":"Coreia do Sul",Canada:"Canadá",
+    Qatar:"Catar",Switzerland:"Suíça",Brazil:"Brasil",Morocco:"Marrocos",Haiti:"Haiti",
+    Scotland:"Escócia",USA:"EUA",Paraguay:"Paraguai",Australia:"Austrália",Germany:"Alemanha",
+    "Curaçao":"Curaçao","Ivory Coast":"Costa do Marfim",Ecuador:"Equador",Netherlands:"Holanda",
+    Japan:"Japão",Tunisia:"Tunísia",Belgium:"Bélgica",Egypt:"Egito",Iran:"Irã",
+    "New Zealand":"Nova Zelândia",Spain:"Espanha","Cape Verde":"Cabo Verde",
+    "Saudi Arabia":"Arábia Saudita",Uruguay:"Uruguai",France:"França",Senegal:"Senegal",
+    Norway:"Noruega",Argentina:"Argentina",Algeria:"Argélia",Austria:"Áustria",Jordan:"Jordânia",
+    Portugal:"Portugal",Colombia:"Colômbia",Uzbekistan:"Uzbequistão",England:"Inglaterra",
+    Croatia:"Croácia",Ghana:"Gana",Panama:"Panamá",
+    // Repescagem UEFA
+    Sweden:"Suécia",Turkey:"Turquia",Italy:"Itália",Denmark:"Dinamarca",Poland:"Polônia",
+    Ukraine:"Ucrânia",Wales:"País de Gales",Slovakia:"Eslováquia",Greece:"Grécia",
+    Serbia:"Sérvia",Romania:"Romênia",Finland:"Finlândia",Hungary:"Hungria",Iceland:"Islândia",
+    Bulgaria:"Bulgária",Slovenia:"Eslovênia",Albania:"Albânia",Montenegro:"Montenegro",
+    "Bosnia and Herzegovina":"Bósnia e Herzegovina","North Macedonia":"Macedônia do Norte",
+    Kosovo:"Kosovo",Ireland:"Irlanda","Czech Republic":"República Tcheca",
+    // Repescagem CONMEBOL
+    Bolivia:"Bolívia",Chile:"Chile",Venezuela:"Venezuela",Peru:"Peru",
+    // Repescagem CONCACAF
+    "Costa Rica":"Costa Rica",Honduras:"Honduras",Jamaica:"Jamaica",
+    "El Salvador":"El Salvador",Cuba:"Cuba",
+    // Repescagem CAF
+    Nigeria:"Nigéria","DR Congo":"RD Congo",Cameroon:"Camarões",Mali:"Mali",
+    Zambia:"Zâmbia",Tanzania:"Tanzânia",Uganda:"Uganda",Kenya:"Quênia",
+    "Burkina Faso":"Burkina Faso",
+    // Repescagem AFC
+    Iraq:"Iraque",Indonesia:"Indonésia",China:"China","United Arab Emirates":"Emirados Árabes",
+    // Outros
+    Trinidad:"Trinidad e Tobago",
+  };
   const tname=n=>T[n]||n;
-  const FLAG_ALIASES={"República Tcheca":"cz",Tchéquia:"cz",Czechia:"cz","Czech Republic":"cz","Bósnia e Herzegovina":"ba",Bósnia:"ba",Bosnia:"ba","Bosnia and Herzegovina":"ba",Turquia:"tr",Turkey:"tr","Türkiye":"tr",Suécia:"se",Sweden:"se",Iraque:"iq",Iraq:"iq","RD Congo":"cd",RDC:"cd","DR Congo":"cd","República Democrática do Congo":"cd",Itália:"it",Italy:"it",Dinamarca:"dk",Denmark:"dk",Polônia:"pl",Poland:"pl",Ucrânia:"ua",Ukraine:"ua","País de Gales":"gb-wls",Wales:"gb-wls",Eslováquia:"sk",Slovakia:"sk",Nigéria:"ng",Nigeria:"ng",Bolívia:"bo",Bolivia:"bo"};
+  const FLAG_ALIASES={
+    "República Tcheca":"cz",Tchéquia:"cz",Czechia:"cz",
+    "Bósnia e Herzegovina":"ba",Bósnia:"ba",Bosnia:"ba",
+    Turquia:"tr","Türkiye":"tr",
+    Suécia:"se",
+    Iraque:"iq",
+    "RD Congo":"cd",RDC:"cd","República Democrática do Congo":"cd",
+    Itália:"it",
+    Dinamarca:"dk",
+    Polônia:"pl",
+    Ucrânia:"ua",
+    "País de Gales":"gb-wls",
+    Eslováquia:"sk",
+    Nigéria:"ng",
+    Bolívia:"bo",
+    Grécia:"gr",Sérvia:"rs",Romênia:"ro",Finlândia:"fi",Hungria:"hu",Islândia:"is",
+    Bulgária:"bg",Eslovênia:"si",Albânia:"al","Macedônia do Norte":"mk",Irlanda:"ie",
+    Chile:"cl",Venezuela:"ve",Peru:"pe",
+    "Costa Rica":"cr",Honduras:"hn",Jamaica:"jm",Camarões:"cm",Zâmbia:"zm",
+    Tanzânia:"tz",Uganda:"ug",Quênia:"ke",Indonésia:"id",China:"cn",
+    "Emirados Árabes":"ae","Emirados Árabes Unidos":"ae",
+  };
   const norm=s=>(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
   const FLAGS_NORM={};
   Object.entries({...FLAGS,...FLAG_ALIASES}).forEach(([k,v])=>{FLAGS_NORM[norm(k)]=v;});
