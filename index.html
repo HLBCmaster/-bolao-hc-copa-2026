@@ -578,7 +578,15 @@
 
     useEffect(()=>{
       const unsub=auth.onAuthStateChanged(async u=>{
-        if(u){setUser(u);try{const snap=await db.collection("users").doc(u.uid).get();if(!snap.exists){setNeedName(true);}else{setProfile(snap.data());setNeedName(false);}}catch(e){setNeedName(true);}}
+        if(u){
+          setUser(u);
+          // Envia o User ID para o GA4
+          if(window.gtag){
+            window.gtag('config','G-9CPZDD71Z5',{user_id:u.uid});
+            window.gtag('set','user_properties',{bolao_user_id:u.uid});
+          }
+          try{const snap=await db.collection("users").doc(u.uid).get();if(!snap.exists){setNeedName(true);}else{setProfile(snap.data());setNeedName(false);}}catch(e){setNeedName(true);}
+        }
         else{setUser(null);setProfile(null);setNeedName(false);}
         setLoginInProgress(false);setAuthLoading(false);
       });return unsub;
