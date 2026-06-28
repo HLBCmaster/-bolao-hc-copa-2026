@@ -321,7 +321,227 @@
     ];
   }
 
-  // ── TeamSelect ──
+  // ── RESUMO FASE DE GRUPOS ──
+  function GruposFimResumo({matches,profile,allUsers,official}){
+    const {useEffect,useRef}=React;
+    const canvasRef=useRef(null);
+
+    // ── calcular stats GF do usuário ──
+    const ended=matches.filter(m=>m.result).sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
+    let exact=0,resultCerto=0,errado=0,totalPts=0;
+    ended.forEach(m=>{
+      const p=betPoints((profile.bets||{})[m.id]?.guess,m.result);
+      if(p===PTS_EXATO)exact++;
+      else if(p===PTS_RESULTADO)resultCerto++;
+      else errado++;
+      totalPts+=p;
+    });
+    const apostadas=Object.values(profile.bets||{}).filter(b=>b?.guess).length;
+    const naoApostadas=ended.length-apostadas;
+
+    // ── ranking só na fase de grupos ──
+    const sortedGF=[...allUsers].map(u=>{
+      let pts=0;
+      matches.forEach(m=>{if(m.result)pts+=betPoints((u.bets||{})[m.id]?.guess,m.result);});
+      return{...u,ptsGF:pts};
+    }).sort((a,b)=>b.ptsGF-a.ptsGF);
+    const myRankGF=sortedGF.findIndex(u=>u.uid===profile.uid)+1;
+    const myPtsGF=sortedGF.find(u=>u.uid===profile.uid)?.ptsGF||0;
+
+    // ── evolução acumulada dia a dia ──
+    const dayMap={};
+    ended.forEach(m=>{
+      const dia=new Date(m.kickoff).toLocaleDateString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit'});
+      const p=betPoints((profile.bets||{})[m.id]?.guess,m.result);
+      dayMap[dia]=(dayMap[dia]||0)+p;
+    });
+    const dias=Object.keys(dayMap).sort((a,b)=>{
+      const[da,ma]=a.split('/').map(Number);const[db,mb]=b.split('/').map(Number);
+      return(ma-mb)||(da-db);
+    });
+    let acc=0;
+    const pontosPorDia=dias.map(d=>{acc+=dayMap[d];return{dia:d,acc};});
+
+    // melhor grupo
+    const grupos=[...new Set(matches.map(m=>m.group))].sort();
+    const melhorGrupo=grupos.map(g=>{
+      const gm=matches.filter(m=>m.group===g&&m.result);
+      const pts=gm.reduce((s,m)=>s+betPoints((profile.bets||{})[m.id]?.guess,m.result),0);
+      return{g,pts,n:gm.length};
+    }).sort((a,b)=>b.pts-a.pts)[0];
+    const piorGrupo=grupos.map(g=>{
+      const gm=matches.filter(m=>m.group===g&&m.result);
+      const pts=gm.reduce((s,m)=>s+betPoints((profile.bets||{})[m.id]?.guess,m.result),0);
+      return{g,pts,n:gm.length};
+    }).sort((a,b)=>a.pts-b.pts)[0];
+
+    // ── Canvas: gráfico de linha ──
+    useEffect(()=>{
+      const canvas=canvasRef.current;
+      if(!canvas||pontosPorDia.length<2)return;
+      const ctx=canvas.getContext('2d');
+      const W=canvas.width,H=canvas.height;
+      const PAD={top:20,right:20,bot:36,left:44};
+      const cW=W-PAD.left-PAD.right,cH=H-PAD.top-PAD.bot;
+      ctx.clearRect(0,0,W,H);
+
+      const maxV=Math.max(...pontosPorDia.map(d=>d.acc),10);
+      const xStep=cW/(pontosPorDia.length-1);
+      const yScale=v=>(cH-(v/maxV)*cH)+PAD.top;
+      const xPos=i=>PAD.left+i*xStep;
+
+      // Grid linhas horizontais
+      ctx.strokeStyle='#e5e7eb';ctx.lineWidth=1;
+      [0,0.25,0.5,0.75,1].forEach(t=>{
+        const y=yScale(maxV*t);
+        ctx.beginPath();ctx.moveTo(PAD.left,y);ctx.lineTo(PAD.left+cW,y);ctx.stroke();
+        ctx.fillStyle='#9ca3af';ctx.font='10px Inter,sans-serif';ctx.textAlign='right';
+        ctx.fillText(Math.round(maxV*t),PAD.left-6,y+4);
+      });
+
+      // Labels eixo X — só alguns para não amontoar
+      const step=Math.ceil(pontosPorDia.length/8);
+      ctx.fillStyle='#9ca3af';ctx.font='10px Inter,sans-serif';ctx.textAlign='center';
+      pontosPorDia.forEach((d,i)=>{
+        if(i%step===0||i===pontosPorDia.length-1)
+          ctx.fillText(d.dia,xPos(i),H-8);
+      });
+
+      // Área preenchida
+      const grad=ctx.createLinearGradient(0,PAD.top,0,PAD.top+cH);
+      grad.addColorStop(0,'rgba(16,185,129,0.25)');grad.addColorStop(1,'rgba(16,185,129,0)');
+      ctx.beginPath();ctx.moveTo(xPos(0),yScale(0));
+      pontosPorDia.forEach((d,i)=>ctx.lineTo(xPos(i),yScale(d.acc)));
+      ctx.lineTo(xPos(pontosPorDia.length-1),yScale(0));ctx.closePath();
+      ctx.fillStyle=grad;ctx.fill();
+
+      // Linha principal
+      ctx.beginPath();ctx.strokeStyle='#10b981';ctx.lineWidth=2.5;ctx.lineJoin='round';
+      pontosPorDia.forEach((d,i)=>{i===0?ctx.moveTo(xPos(i),yScale(d.acc)):ctx.lineTo(xPos(i),yScale(d.acc));});
+      ctx.stroke();
+
+      // Pontos
+      pontosPorDia.forEach((d,i)=>{
+        ctx.beginPath();ctx.arc(xPos(i),yScale(d.acc),4,0,Math.PI*2);
+        ctx.fillStyle='#10b981';ctx.fill();
+        ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+      });
+
+      // Último ponto: label valor
+      const last=pontosPorDia[pontosPorDia.length-1];
+      ctx.fillStyle='#064e3b';ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='center';
+      ctx.fillText(last.acc+' pts',xPos(pontosPorDia.length-1),yScale(last.acc)-10);
+    },[pontosPorDia.length]);
+
+    const pct=v=>ended.length>0?Math.round(v/ended.length*100):0;
+
+    return(
+      <div className="space-y-4">
+        {/* Header */}
+        <div className="rounded-2xl p-4 text-white" style={{background:'linear-gradient(135deg,#064e3b,#065f46)'}}>
+          <p className="text-emerald-300 text-xs font-semibold mb-1">FASE DE GRUPOS — ENCERRADA</p>
+          <p className="text-xl font-bold">Veja seu desempenho! 📊</p>
+          <p className="text-emerald-200 text-sm mt-1">72 jogos disputados · agora é Mata-Mata</p>
+        </div>
+
+        {/* KPIs linha 1 */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
+            <p className="text-3xl font-bold text-emerald-600">{myPtsGF}</p>
+            <p className="text-xs text-gray-500 mt-1">Pontos na fase de grupos</p>
+          </div>
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
+            <p className="text-3xl font-bold text-purple-600">{myRankGF}º</p>
+            <p className="text-xs text-gray-500 mt-1">Posição na fase de grupos</p>
+          </div>
+        </div>
+
+        {/* KPIs linha 2 */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-emerald-50 rounded-2xl p-3 text-center border border-emerald-100">
+            <p className="text-2xl font-bold text-emerald-600">{exact}</p>
+            <p className="text-xs text-emerald-700 mt-1 font-medium">Placares exatos</p>
+            <p className="text-xs text-emerald-500">{pct(exact)}%</p>
+          </div>
+          <div className="bg-blue-50 rounded-2xl p-3 text-center border border-blue-100">
+            <p className="text-2xl font-bold text-blue-600">{resultCerto}</p>
+            <p className="text-xs text-blue-700 mt-1 font-medium">Resultados certos</p>
+            <p className="text-xs text-blue-500">{pct(resultCerto)}%</p>
+          </div>
+          <div className="bg-red-50 rounded-2xl p-3 text-center border border-red-100">
+            <p className="text-2xl font-bold text-red-500">{errado}</p>
+            <p className="text-xs text-red-600 mt-1 font-medium">Sem pontos</p>
+            <p className="text-xs text-red-400">{pct(errado)}%</p>
+          </div>
+        </div>
+
+        {/* Gráfico de evolução */}
+        {pontosPorDia.length>=2&&(
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <p className="font-semibold text-gray-700 text-sm mb-3">📈 Evolução de pontos — acumulado por dia</p>
+            <canvas ref={canvasRef} width={600} height={200} style={{width:'100%',height:'auto',display:'block'}}/>
+          </div>
+        )}
+
+        {/* Barra de distribuição */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <p className="font-semibold text-gray-700 text-sm mb-3">🎯 Distribuição das apostas ({apostadas}/{ended.length} jogos)</p>
+          <div className="flex rounded-full overflow-hidden h-5 mb-3">
+            {exact>0&&<div style={{width:pct(exact)+'%',background:'#10b981'}} title={`Exatos: ${exact}`}/>}
+            {resultCerto>0&&<div style={{width:pct(resultCerto)+'%',background:'#3b82f6'}} title={`Resultado certo: ${resultCerto}`}/>}
+            {errado>0&&<div style={{width:pct(errado)+'%',background:'#f87171'}} title={`Sem pontos: ${errado}`}/>}
+            {naoApostadas>0&&<div style={{width:pct(naoApostadas)+'%',background:'#e5e7eb'}} title={`Sem aposta: ${naoApostadas}`}/>}
+          </div>
+          <div className="flex flex-wrap gap-3 text-xs">
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-emerald-500 inline-block"/><span className="text-gray-600">Exato ({exact})</span></span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-blue-500 inline-block"/><span className="text-gray-600">Resultado ({resultCerto})</span></span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-red-400 inline-block"/><span className="text-gray-600">Errado ({errado})</span></span>
+            {naoApostadas>0&&<span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-gray-200 inline-block"/><span className="text-gray-600">Sem aposta ({naoApostadas})</span></span>}
+          </div>
+        </div>
+
+        {/* Melhor e pior grupo */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <p className="text-xs text-gray-400 font-medium mb-1">🏅 Melhor grupo</p>
+            <p className="text-2xl font-bold text-emerald-600">Grupo {melhorGrupo?.g}</p>
+            <p className="text-sm text-gray-500">{melhorGrupo?.pts} pts em {melhorGrupo?.n} jogos</p>
+          </div>
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <p className="text-xs text-gray-400 font-medium mb-1">📉 Grupo difícil</p>
+            <p className="text-2xl font-bold text-red-400">Grupo {piorGrupo?.g}</p>
+            <p className="text-sm text-gray-500">{piorGrupo?.pts} pts em {piorGrupo?.n} jogos</p>
+          </div>
+        </div>
+
+        {/* Mini ranking GF */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-50"><p className="font-semibold text-gray-700 text-sm">🏆 Ranking da Fase de Grupos</p></div>
+          <div className="divide-y divide-gray-50">
+            {sortedGF.slice(0,5).map((u,i)=>(
+              <div key={u.uid} className={"flex items-center gap-3 px-4 py-2.5 "+(u.uid===profile.uid?"bg-emerald-50":"")}>
+                <span className={"w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 "+(i===0?"bg-yellow-400 text-white":i===1?"bg-gray-300 text-gray-700":i===2?"bg-orange-400 text-white":"bg-gray-100 text-gray-500")}>{i+1}</span>
+                <span className="flex-1 text-sm font-medium text-gray-800 truncate">{u.displayName}{u.uid===profile.uid&&<span className="text-xs text-emerald-500 ml-1">(você)</span>}</span>
+                <span className="text-sm font-bold text-emerald-600">{u.ptsGF} pts</span>
+              </div>
+            ))}
+            {myRankGF>5&&(
+              <div className="flex items-center gap-3 px-4 py-2.5 bg-emerald-50">
+                <span className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold bg-gray-100 text-gray-500 shrink-0">{myRankGF}</span>
+                <span className="flex-1 text-sm font-medium text-gray-800 truncate">{profile.displayName}<span className="text-xs text-emerald-500 ml-1">(você)</span></span>
+                <span className="text-sm font-bold text-emerald-600">{myPtsGF} pts</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Acesso ao histórico */}
+        <button onClick={()=>{}} className="w-full bg-white border border-gray-200 rounded-2xl px-4 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition flex items-center justify-center gap-2">
+          ⚽ Ver todos os jogos encerrados abaixo
+        </button>
+      </div>
+    );
+  }
   const TeamSelect=({value,onChange,disabled,options})=>{
     const opts=value&&!options.includes(value)?[value,...options]:options;
     return <select value={value||""} onChange={e=>onChange(e.target.value)} disabled={disabled} className={"w-full px-3 py-2 border-2 rounded-xl text-sm font-medium focus:outline-none "+(disabled?"bg-gray-50 border-gray-100 text-gray-400 cursor-not-allowed":"border-gray-200 focus:border-emerald-400")}><option value="">Selecione o time...</option>{opts.map((o,i)=><option key={i} value={o}>{o}</option>)}</select>;
@@ -706,8 +926,13 @@
           {/* FASE DE GRUPOS */}
           {tab==="placares"&&matches.length>0&&(
             <div>
-              {ended.length>0&&(<div className="mb-4"><button onClick={()=>setShowPast(!showPast)} className="w-full flex items-center justify-between bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition"><span>{showPast?"▾":"▸"} Jogos encerrados ({ended.length})</span><span className="text-xs text-gray-400">{showPast?"ocultar":"ver"}</span></button>{showPast&&<div className="mt-3">{ended.map(m=><MatchCard key={m.id} m={m} bet={(profile.bets||{})[m.id]||{guess:"",changes:0}} isAdmin={isAdmin} resultDrafts={resultDrafts} setResultDrafts={setResultDrafts} saveResult={saveResult} saveBet={saveBet}/>)}</div>}</div>)}
-              {openMatches.length>0?openMatches.map(m=><MatchCard key={m.id} m={m} bet={(profile.bets||{})[m.id]||{guess:"",changes:0}} isAdmin={isAdmin} resultDrafts={resultDrafts} setResultDrafts={setResultDrafts} saveResult={saveResult} saveBet={saveBet}/>):<p className="text-center text-gray-400 py-6 text-sm">Todos os jogos da fase de grupos foram encerrados. 🏁</p>}
+              {openMatches.length===0&&(
+                <div className="mb-4">
+                  <GruposFimResumo matches={matches} profile={profile} allUsers={allUsers} official={official}/>
+                </div>
+              )}
+              {openMatches.length>0?openMatches.map(m=><MatchCard key={m.id} m={m} bet={(profile.bets||{})[m.id]||{guess:"",changes:0}} isAdmin={isAdmin} resultDrafts={resultDrafts} setResultDrafts={setResultDrafts} saveResult={saveResult} saveBet={saveBet}/>):null}
+              {ended.length>0&&(<div className="mt-2"><button onClick={()=>setShowPast(!showPast)} className="w-full flex items-center justify-between bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition"><span>{showPast?"▾":"▸"} Jogos encerrados ({ended.length})</span><span className="text-xs text-gray-400">{showPast?"ocultar":"ver"}</span></button>{showPast&&<div className="mt-3">{ended.map(m=><MatchCard key={m.id} m={m} bet={(profile.bets||{})[m.id]||{guess:"",changes:0}} isAdmin={isAdmin} resultDrafts={resultDrafts} setResultDrafts={setResultDrafts} saveResult={saveResult} saveBet={saveBet}/>)}</div>}</div>)}
             </div>
           )}
           {tab==="placares"&&matches.length===0&&!isAdmin&&<div className="text-center py-16 text-gray-400"><div className="text-5xl mb-3">⚽</div><p className="font-medium">Os jogos ainda não foram cadastrados.</p></div>}
@@ -919,49 +1144,4 @@
             <div className="space-y-4">
               <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
                 <h3 className="font-bold text-gray-800 mb-3">👥 Apostas por participante ({allUsers.length})</h3>
-                <div className="space-y-3">{[...allUsers].map(u=>({name:u.displayName||"(sem nome)",groupBets:Object.values(u.bets||{}).filter(b=>b&&b.guess).length,koBets:Object.values(u.koBets||{}).filter(b=>b&&b.guess).length,pts:userTotal(u,matches,koMatches,official)})).sort((a,b)=>(b.groupBets+b.koBets)-(a.groupBets+a.koBets)).map((u,i)=>{const total=u.groupBets+u.koBets;const totalJogos=(matches.length||72)+(koMatches.length||32);const pct=totalJogos>0?Math.round((total/totalJogos)*100):0;return(<div key={i} className="space-y-0.5"><div className="flex items-center gap-2"><span className="text-sm font-medium text-gray-700 w-24 truncate shrink-0">{u.name}</span><div className="flex-1 bg-gray-100 rounded-full h-2 min-w-0"><div className="bg-emerald-500 h-2 rounded-full transition-all" style={{width:pct+"%"}}></div></div><span className="text-xs font-bold text-gray-600 w-16 text-right shrink-0">{total}/{totalJogos}</span><span className="text-xs text-emerald-600 font-bold w-14 text-right shrink-0">{u.pts} pts</span></div><div className="flex gap-1 pl-26 ml-[6.5rem]"><span className="text-xs text-gray-400">GF: <b className="text-gray-600">{u.groupBets}</b></span><span className="text-gray-300 text-xs">·</span><span className="text-xs text-gray-400">MM: <b className="text-gray-600">{u.koBets}</b></span></div></div>);})}{allUsers.length===0&&<p className="text-xs text-gray-400">Nenhum participante ainda.</p>}</div>
-              </div>
-              <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
-                <h3 className="font-bold text-gray-800 mb-3">🌟 Previsões enviadas ({allUsers.filter(u=>u.predSubmitted).length}/{allUsers.length})</h3>
-                <div className="space-y-1.5">{[...allUsers].sort((a,b)=>(b.predSubmitted?1:0)-(a.predSubmitted?1:0)).map((u,i)=>(<div key={i} className="flex items-center justify-between text-sm"><span className="font-medium text-gray-700 truncate">{u.displayName||"(sem nome)"}</span>{u.predSubmitted?<span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full shrink-0">✅ enviou</span>:<span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full shrink-0">⏳ pendente</span>}</div>))}{allUsers.length===0&&<p className="text-xs text-gray-400">Nenhum participante ainda.</p>}</div>
-              </div>
-              {(()=>{
-                const totalUsers=allUsers.length;const submitted=allUsers.filter(u=>u.predSubmitted).length;
-                const totalBets=allUsers.reduce((s,u)=>s+Object.values(u.bets||{}).filter(b=>b&&b.guess).length,0);
-                const avgBets=totalUsers?Math.round(totalBets/totalUsers):0;
-                const tally=field=>{const o={};allUsers.forEach(u=>{const v=(u.predictions||{})[field];if(v&&v.trim()){const k=v.trim();o[k]=(o[k]||0)+1;}});return Object.entries(o).sort((a,b)=>b[1]-a[1]).slice(0,6);};
-                const Bar=({label,count,max,color})=>(<div className="flex items-center gap-2 mb-1.5"><span className="text-xs text-gray-600 w-24 truncate shrink-0">{label}</span><div className="flex-1 bg-gray-100 rounded-full h-3 min-w-0"><div className="h-3 rounded-full" style={{width:(count/max*100)+"%",background:color}}></div></div><span className="text-xs font-bold text-gray-600 w-5 text-right shrink-0">{count}</span></div>);
-                const predColors=["#10b981","#3b82f6","#f59e0b","#8b5cf6","#ec4899"];
-                return(<div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
-                  <h3 className="font-bold text-gray-800 mb-3">📊 Visão geral</h3>
-                  <div className="grid grid-cols-2 gap-2 mb-4">
-                    <div className="bg-emerald-50 rounded-xl p-3 text-center"><p className="text-2xl font-bold text-emerald-600">{totalUsers}</p><p className="text-xs text-gray-500">Participantes</p></div>
-                    <div className="bg-blue-50 rounded-xl p-3 text-center"><p className="text-2xl font-bold text-blue-600">{totalUsers?Math.round(submitted/totalUsers*100):0}%</p><p className="text-xs text-gray-500">Enviaram previsões</p></div>
-                    <div className="bg-purple-50 rounded-xl p-3 text-center"><p className="text-2xl font-bold text-purple-600">{totalBets}</p><p className="text-xs text-gray-500">Apostas totais</p></div>
-                    <div className="bg-amber-50 rounded-xl p-3 text-center"><p className="text-2xl font-bold text-amber-600">{avgBets}</p><p className="text-xs text-gray-500">Média por pessoa</p></div>
-                  </div>
-                  {PRED_LABELS.map((p,pi)=>{
-                    const data=tally(p.key);const maxV=data.length?data[0][1]:1;
-                    const color=predColors[pi]||"#6b7280";
-                    const isTeam=["champion","vicechampion","third"].includes(p.key);
-                    return(<div key={p.key} className="mb-4 last:mb-0">
-                      <p className="text-xs font-semibold text-gray-600 mb-1.5">{p.label}</p>
-                      {data.length===0?<p className="text-xs text-gray-400">Nenhum palpite ainda.</p>:<div>{data.map(([n,c],i)=><Bar key={i} label={isTeam?tname(n):n} count={c} max={maxV} color={color}/>)}</div>}
-                    </div>);
-                  })}
-                </div>);
-              })()}
-              <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100"><h3 className="font-bold text-gray-800 mb-2">🏅 Resultados finais (previsões)</h3><p className="text-xs text-gray-500 mb-3">Preencha ao fim da Copa. Salva ao clicar fora.</p>{PRED_LABELS.map(p=>{const isTeam=["champion","vicechampion","third"].includes(p.key);return(<div key={p.key} className="flex items-center gap-2 mb-2"><span className="text-xs text-gray-600 w-36">{p.label}</span>{isTeam?<select value={(official||{})[p.key]||""} onChange={e=>saveOfficial(p.key,e.target.value)} className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-emerald-400"><option value="">Selecione...</option>{teamOptions.map((o,i)=><option key={i} value={o}>{o}</option>)}</select>:<input defaultValue={(official||{})[p.key]||""} onBlur={e=>saveOfficial(p.key,e.target.value)} placeholder="resposta oficial" className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-emerald-400"/>}</div>);})}<p className="text-xs text-gray-400 mt-2">Salva automaticamente ao clicar fora do campo.</p></div>
-              <p className="text-xs text-gray-400">💡 Para lançar placares da Fase de Grupos use o campo roxo na aba <b>Fase de Grupos</b>. Para o Mata-Mata, toque no jogo na aba <b>Mata-Mata</b>.</p>
-            </div>
-          )}
-        </main>
-        <footer className="text-center text-xs text-gray-400 py-6 border-t border-gray-100 mt-4">⚽ Bolão HC Copa 2026 · HCmaster · <a href="https://wa.me/5519981719881" className="text-emerald-500 hover:underline">WhatsApp</a></footer>
-      </div>
-    );
-  }
-
-  ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
-</script>
-</body>
-</html>
+                <div className="space-y-3">{[...allUsers].map(u=>({name:u.displayName||"(sem nome)",groupBets:Object.values(u.bets||{}).filter(b=>b&&b.guess).length,koBets:Object.values(u.koBets||{}).filter(b=>b&&b.guess).length,pts:userTotal(u,matches,koMatches,official)})).sort((a,b)=>(b.groupBets+b.koBets)-(a.groupBets+a.koBets)).map((u,i)=>{const total=u.groupBets+u.koBets;const totalJogos=(matches.length||72)+(koMatches.length||32);const pct=totalJogos>0?Math.round((total/totalJogos)*100):0;return(<div key={i} className="space-y-0.5"><div className="flex items-center gap-2"><span className="text-sm font-medium text-gray-700 w-24 truncate shrink-0">{u.name}</span><div className="flex-1 bg-gray-100 rounded-full h-2 min-w-0"><div classN
