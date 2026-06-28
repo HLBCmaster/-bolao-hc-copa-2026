@@ -323,8 +323,7 @@
 
   // ── RESUMO FASE DE GRUPOS ──
   function GruposFimResumo({matches,profile,allUsers,official}){
-    const {useEffect,useRef}=React;
-    const canvasRef=useRef(null);
+    const canvasRef=React.useRef(null);
 
     // ── calcular stats GF do usuário ──
     const ended=matches.filter(m=>m.result).sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
@@ -1144,4 +1143,4 @@
             <div className="space-y-4">
               <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
                 <h3 className="font-bold text-gray-800 mb-3">👥 Apostas por participante ({allUsers.length})</h3>
-                <div className="space-y-3">{[...allUsers].map(u=>({name:u.displayName||"(sem nome)",groupBets:Object.values(u.bets||{}).filter(b=>b&&b.guess).length,koBets:Object.values(u.koBets||{}).filter(b=>b&&b.guess).length,pts:userTotal(u,matches,koMatches,official)})).sort((a,b)=>(b.groupBets+b.koBets)-(a.groupBets+a.koBets)).map((u,i)=>{const total=u.groupBets+u.koBets;const totalJogos=(matches.length||72)+(koMatches.length||32);const pct=totalJogos>0?Math.round((total/totalJogos)*100):0;return(<div key={i} className="space-y-0.5"><div className="flex items-center gap-2"><span className="text-sm font-medium text-gray-700 w-24 truncate shrink-0">{u.name}</span><div className="flex-1 bg-gray-100 rounded-full h-2 min-w-0"><div classN
+                <div className="space-y-3">{[...allUsers].map(u=>({name:u.displayName||"(sem nome)",groupBets:Object.values(u.bets||{}).filter(b=>b&&b.guess).length,koBets:Object.values(u.koBets||{}).filter(b=>b&&b.guess).length,pts:userTotal(u,matches,koMatches,official)})).sort((a,b)=>(b.groupBets+b.koBets)-(a.groupBets+a.koBets)).map((u,i)=>{const total=u.groupBets+u.koBets;const totalJogos=(matches.length||72)+(koMatches.length||32);const pct=totalJogos>0?Math.round((total/totalJogos)*100):0;return(<div key={i} className="space-y-0.5"><div className="flex items-center gap-2"><span className="text-sm font-medium text-gray-700 w-24 truncate shrink-0">{u.name}</span><div className="flex-1 bg-gray-100 rounded-full h-2 min-w-0"><div className="bg-emerald-500 h-2 rounde
