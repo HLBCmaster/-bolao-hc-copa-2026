@@ -811,9 +811,83 @@
           {/* ACOMPANHAMENTO */}
           {tab==="acomp"&&(
             <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-3">{[{n:myPts,l:"Seus Pontos",c:"#10b981"},{n:myRank+"º",l:"Posição",c:"#8b5cf6"},{n:Object.values(profile.bets||{}).filter(b=>b.guess).length,l:"Apostas feitas",c:"#3b82f6"}].map((s,i)=>(<div key={i} className="bg-white rounded-2xl p-4 text-center shadow-sm border border-gray-100"><p className="text-2xl font-bold" style={{color:s.c}}>{s.n}</p><p className="text-xs text-gray-400 mt-1">{s.l}</p></div>))}</div>
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"><div className="px-4 py-3 border-b border-gray-50"><h3 className="font-semibold text-gray-700 text-sm">⏰ Próximos jogos</h3></div><div className="divide-y divide-gray-50">{matches.filter(m=>!m.result&&!isLocked(m.kickoff)).slice(0,5).map(m=>{const b=(profile.bets||{})[m.id];return(<div key={m.id} className="flex items-center justify-between px-4 py-3 gap-3"><div className="flex-1 min-w-0"><div className="flex items-center gap-2 text-sm font-medium text-gray-800 flex-wrap"><Flag name={m.team1} size="sm"/><span className="truncate">{tname(m.team1)}</span><span className="text-gray-300">×</span><span className="truncate">{tname(m.team2)}</span><Flag name={m.team2} size="sm"/></div><p className="text-xs text-gray-400 mt-0.5">{fmtDate(m.kickoff)} às {fmtTime(m.kickoff)}</p></div><span className={"text-xs font-bold px-2 py-1 rounded-lg whitespace-nowrap "+(b?.guess?"bg-emerald-100 text-emerald-700":"bg-gray-100 text-gray-400")}>{b?.guess||"sem aposta"}</span></div>);})}</div></div>
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"><div className="px-4 py-3 border-b border-gray-50"><h3 className="font-semibold text-gray-700 text-sm">✅ Resultados recentes</h3></div><div className="divide-y divide-gray-50">{matches.filter(m=>m.result).slice(-5).reverse().map(m=>{const b=(profile.bets||{})[m.id]||{};const p=betPoints(b.guess,m.result);return(<div key={m.id} className="flex items-center justify-between px-4 py-3 gap-3"><div className="flex-1 min-w-0"><div className="flex items-center gap-2 text-sm font-medium text-gray-800 flex-wrap"><Flag name={m.team1} size="sm"/><span>{tname(m.team1)}</span><span className="font-bold text-gray-600">{m.result.replace("-"," - ")}</span><span>{tname(m.team2)}</span><Flag name={m.team2} size="sm"/></div><p className="text-xs text-gray-400 mt-0.5">Sua aposta: <b>{b.guess||"—"}</b></p></div><span className={"text-sm font-bold "+(p>0?"text-emerald-600":"text-red-400")}>{p>0?"+"+p:"0"}</span></div>);})}</div></div>
+              <div className="grid grid-cols-3 gap-3">{[{n:myPts,l:"Seus Pontos",c:"#10b981"},{n:myRank+"º",l:"Posição",c:"#8b5cf6"},{n:myBetsTotal,l:"Apostas feitas",c:"#3b82f6"}].map((s,i)=>(<div key={i} className="bg-white rounded-2xl p-4 text-center shadow-sm border border-gray-100"><p className="text-2xl font-bold" style={{color:s.c}}>{s.n}</p><p className="text-xs text-gray-400 mt-1">{s.l}</p></div>))}</div>
+
+              {/* Próximos jogos — GF + MM juntos ordenados por kickoff */}
+              {(()=>{
+                const proxGF=matches.filter(m=>!m.result&&!isLocked(m.kickoff)&&m.kickoff).map(m=>({...m,_tipo:'gf'}));
+                const proxMM=koMatches.filter(m=>!m.result&&m.kickoff&&!isLocked(m.kickoff)&&m.team1&&m.team2).map(m=>({...m,_tipo:'mm'}));
+                const proximos=[...proxGF,...proxMM].sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff)).slice(0,6);
+                return(
+                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-gray-50"><h3 className="font-semibold text-gray-700 text-sm">⏰ Próximos jogos</h3></div>
+                    <div className="divide-y divide-gray-50">
+                      {proximos.length===0&&<p className="text-xs text-gray-400 px-4 py-3">Nenhum jogo aberto no momento.</p>}
+                      {proximos.map(m=>{
+                        const isMM=m._tipo==='mm';
+                        const b=isMM?(profile.koBets||{})[m.id]:(profile.bets||{})[m.id];
+                        const aposta=isMM?(b?.guess?`${b.guess} · ${tname(m[b.pick]||'')} avança`:null):b?.guess;
+                        const phase=isMM?KO_PHASES.find(p=>p.id===m.phase):null;
+                        return(
+                          <div key={m.id} className="flex items-center justify-between px-4 py-3 gap-3">
+                            <div className="flex-1 min-w-0">
+                              {isMM&&<p className="text-xs text-purple-500 font-semibold mb-0.5">{phase?.label||'Mata-Mata'}</p>}
+                              <div className="flex items-center gap-2 text-sm font-medium text-gray-800 flex-wrap">
+                                <Flag name={m.team1} size="sm"/>
+                                <span className="truncate">{tname(m.team1)}</span>
+                                <span className="text-gray-300">×</span>
+                                <span className="truncate">{tname(m.team2)}</span>
+                                <Flag name={m.team2} size="sm"/>
+                              </div>
+                              <p className="text-xs text-gray-400 mt-0.5">{fmtDate(m.kickoff)} às {fmtTime(m.kickoff)}</p>
+                            </div>
+                            <span className={"text-xs font-bold px-2 py-1 rounded-lg whitespace-nowrap text-right "+(aposta?"bg-emerald-100 text-emerald-700":"bg-gray-100 text-gray-400")}>{aposta||"sem aposta"}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Resultados recentes — GF + MM juntos */}
+              {(()=>{
+                const resGF=matches.filter(m=>m.result).map(m=>({...m,_tipo:'gf'}));
+                const resMM=koMatches.filter(m=>m.result&&m.kickoff).map(m=>({...m,_tipo:'mm'}));
+                const recentes=[...resGF,...resMM].sort((a,b)=>new Date(b.kickoff||0)-new Date(a.kickoff||0)).slice(0,6);
+                return(
+                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-gray-50"><h3 className="font-semibold text-gray-700 text-sm">✅ Resultados recentes</h3></div>
+                    <div className="divide-y divide-gray-50">
+                      {recentes.length===0&&<p className="text-xs text-gray-400 px-4 py-3">Nenhum resultado ainda.</p>}
+                      {recentes.map(m=>{
+                        const isMM=m._tipo==='mm';
+                        const phase=isMM?KO_PHASES.find(p=>p.id===m.phase):null;
+                        const b=isMM?(profile.koBets||{})[m.id]||{}:(profile.bets||{})[m.id]||{};
+                        const p=isMM?koPoints(b,m):betPoints(b.guess,m.result);
+                        return(
+                          <div key={m.id} className="flex items-center justify-between px-4 py-3 gap-3">
+                            <div className="flex-1 min-w-0">
+                              {isMM&&<p className="text-xs text-purple-500 font-semibold mb-0.5">{phase?.label||'Mata-Mata'}{m.winner&&<span className="text-emerald-600"> · {tname(m[m.winner]||'')} avançou</span>}</p>}
+                              <div className="flex items-center gap-2 text-sm font-medium text-gray-800 flex-wrap">
+                                <Flag name={m.team1} size="sm"/>
+                                <span>{tname(m.team1)}</span>
+                                <span className="font-bold text-gray-600">{m.result.replace("-"," - ")}</span>
+                                <span>{tname(m.team2)}</span>
+                                <Flag name={m.team2} size="sm"/>
+                              </div>
+                              <p className="text-xs text-gray-400 mt-0.5">
+                                {isMM?(b.guess?`Sua aposta: ${b.guess} · ${tname(m[b.pick]||b.pick||'')} avança`:"Sem aposta"):`Sua aposta: ${b.guess||"—"}`}
+                              </p>
+                            </div>
+                            <span className={"text-sm font-bold "+(p>0?"text-emerald-600":"text-red-400")}>{p>0?"+"+p:"0"}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
