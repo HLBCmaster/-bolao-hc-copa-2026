@@ -1175,7 +1175,34 @@
                   })}
                 </div>);
               })()}
-              <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100"><h3 className="font-bold text-gray-800 mb-2">🏅 Resultados finais (previsões)</h3><p className="text-xs text-gray-500 mb-3">Preencha ao fim da Copa. Salva ao clicar fora.</p>{PRED_LABELS.map(p=>{const isTeam=["champion","vicechampion","third"].includes(p.key);return(<div key={p.key} className="flex items-center gap-2 mb-2"><span className="text-xs text-gray-600 w-36">{p.label}</span>{isTeam?<select value={(official||{})[p.key]||""} onChange={e=>saveOfficial(p.key,e.target.value)} className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-emerald-400"><option value="">Selecione...</option>{teamOptions.map((o,i)=><option key={i} value={o}>{o}</option>)}</select>:<input defaultValue={(official||{})[p.key]||""} onBlur={e=>saveOfficial(p.key,e.target.value)} placeholder="resposta oficial" className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-emerald-400"/>}</div>);})}<p className="text-xs text-gray-400 mt-2">Salva automaticamente ao clicar fora do campo.</p></div>
+              <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
+                <h3 className="font-bold text-gray-800 mb-2">🏅 Resultados finais (previsões)</h3>
+                <p className="text-xs text-gray-500 mb-3">Defina as respostas oficiais ao fim da Copa. Cada campo salva na hora que você altera.</p>
+                {(()=>{
+                  const allTeamOptions=Object.keys(T).map(tname).filter((v,i,a)=>a.indexOf(v)===i).sort((a,b)=>a.localeCompare(b,"pt"));
+                  return PRED_LABELS.map(p=>{
+                    const isTeam=["champion","vicechampion","third"].includes(p.key);
+                    const cur=(official||{})[p.key]||"";
+                    return(
+                      <div key={p.key} className="mb-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-semibold text-gray-600">{p.label} <span className="text-emerald-500">(+{PRED_PTS[p.key]})</span></span>
+                          {cur?<span className="text-xs text-emerald-600 font-bold">✓ {cur}</span>:<span className="text-xs text-amber-500">pendente</span>}
+                        </div>
+                        {isTeam?(
+                          <select value={cur} onChange={e=>saveOfficial(p.key,e.target.value)} className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:outline-none focus:border-emerald-400">
+                            <option value="">Selecione o time...</option>
+                            {allTeamOptions.map((o,i)=><option key={i} value={o}>{o}</option>)}
+                          </select>
+                        ):(
+                          <input value={cur} onChange={e=>saveOfficial(p.key,e.target.value)} placeholder="Digite o nome (ex: Vini Jr., Mbappé...)" className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:outline-none focus:border-emerald-400"/>
+                        )}
+                      </div>
+                    );
+                  });
+                })()}
+                <p className="text-xs text-gray-400 mt-2">💡 Os pontos são recalculados automaticamente para todos assim que você preenche.</p>
+              </div>
               <p className="text-xs text-gray-400">💡 Para lançar placares da Fase de Grupos use o campo roxo na aba <b>Fase de Grupos</b>. Para o Mata-Mata, toque no jogo na aba <b>Mata-Mata</b>.</p>
             </div>
           )}
