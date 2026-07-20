@@ -602,10 +602,62 @@
     const totalBetsAll=allUsers.reduce((s,u)=>s+Object.values(u.bets||{}).filter(b=>b?.guess).length+Object.values(u.koBets||{}).filter(b=>b?.guess).length,0);
     const avgPts=totalParticipants>0?Math.round(sorted.reduce((s,u)=>s+u.pts,0)/totalParticipants):0;
 
+    // ── Pontos por fase (do usuário) ──
+    const ptsPerPhase=u=>{
+      let gf=0,mm=0,pred=0;
+      ended.forEach(m=>{gf+=betPoints((u.bets||{})[m.id]?.guess,m.result);});
+      koEnded.forEach(m=>{mm+=koPoints((u.koBets||{})[m.id],m);});
+      if(official)PRED_LABELS.forEach(p=>{const a=norm(official[p.key]),g=norm((u.predictions||{})[p.key]);if(a&&g&&a===g)pred+=PRED_PTS[p.key];});
+      return{gf,mm,pred};
+    };
+    const myPhases=ptsPerPhase(profile);
+
+    // Aproveitamento: % dos jogos encerrados apostados em que pontuou
+    let scoredGames=0,betOnEndedGames=0;
+    ended.forEach(m=>{const g=(profile.bets||{})[m.id]?.guess;if(g){betOnEndedGames++;if(betPoints(g,m.result)>0)scoredGames++;}});
+    koEnded.forEach(m=>{const kb=(profile.koBets||{})[m.id];if(kb?.guess){betOnEndedGames++;if(koPoints(kb,m)>0)scoredGames++;}});
+    const aproveitamento=betOnEndedGames>0?Math.round(scoredGames/betOnEndedGames*100):0;
+
+    // ── Destaques coletivos ──
+    const collectiveStats=allUsers.map(u=>{
+      const s=userStats(u,matches);
+      let uKoExact=0,uKoAdvance=0;
+      koEnded.forEach(m=>{
+        const kb=(u.koBets||{})[m.id];
+        if(!kb?.guess)return;
+        if(kb.guess.trim()===m.result.trim())uKoExact++;
+        if(m.winner&&kb.pick===m.winner)uKoAdvance++;
+      });
+      const ph=ptsPerPhase(u);
+      return{uid:u.uid,displayName:u.displayName,totalExact:s.exact+uKoExact,koAdvance:uKoAdvance,maxStreak:s.maxStreak,ptsGF:ph.gf,ptsMM:ph.mm};
+    });
+    const reiCravadas=[...collectiveStats].sort((a,b)=>b.totalExact-a.totalExact)[0];
+    const topGF=[...collectiveStats].sort((a,b)=>b.ptsGF-a.ptsGF)[0];
+    const topMM=[...collectiveStats].sort((a,b)=>b.ptsMM-a.ptsMM)[0];
+    const reiSequencia=[...collectiveStats].sort((a,b)=>b.maxStreak-a.maxStreak)[0];
+    const visionarioMM=[...collectiveStats].sort((a,b)=>b.koAdvance-a.koAdvance)[0];
+
+    // Jogo do MM mais difícil (menos gente acertou quem avança)
+    let hardestKO=null,hardestKOCount=Infinity;
+    koEnded.forEach(m=>{
+      if(!m.winner)return;
+      let hits=0;
+      allUsers.forEach(u=>{const kb=(u.koBets||{})[m.id];if(kb?.pick===m.winner)hits++;});
+      if(hits<hardestKOCount){hardestKOCount=hits;hardestKO=m;}
+    });
+
+    // Campeão mais apostado nas previsões
+    const champTally={};
+    allUsers.forEach(u=>{const c=(u.predictions||{}).champion;if(c&&c.trim())champTally[c.trim()]=(champTally[c.trim()]||0)+1;});
+    const mostPickedChampion=Object.entries(champTally).sort((a,b)=>b[1]-a[1])[0];
+
     return{
       totalGamesEnded,sorted,myRank,myPts,myGFStats,koExact,koAdvance,koBetCount,totalExact,totalBets,
       uniqueExactGames,hardest,hardestCount,easiest,easiestCount,mostCommonScore,
       championHits,scorerHits,bestPlayerHits,myPredHits,totalParticipants,totalBetsAll,avgPts,
+      myPhases,aproveitamento,scoredGames,betOnEndedGames,
+      reiCravadas,topGF,topMM,reiSequencia,visionarioMM,hardestKO,hardestKOCount,mostPickedChampion,
+      koEndedCount:koEnded.length,
     };
   }
 
@@ -642,6 +694,42 @@
           <div className="bg-amber-50 rounded-2xl p-3 text-center border border-amber-100">
             <p className="text-2xl font-bold text-amber-600">{d.myGFStats.maxStreak}</p>
             <p className="text-xs text-amber-700 mt-1 font-medium">Maior sequência</p>
+          </div>
+        </div>
+
+        {/* Pontos por fase */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <p className="font-semibold text-gray-700 text-sm mb-3">🧮 De onde vieram seus pontos</p>
+          {(()=>{
+            const tot=Math.max(d.myPhases.gf+d.myPhases.mm+d.myPhases.pred,1);
+            const seg=[["Fase de Grupos",d.myPhases.gf,"#10b981"],["Mata-Mata",d.myPhases.mm,"#8b5cf6"],["Previsões",d.myPhases.pred,"#f59e0b"]];
+            return(<div>
+              <div className="flex rounded-full overflow-hidden h-5 mb-3">
+                {seg.map(([l,v,c],i)=>v>0&&<div key={i} style={{width:(v/tot*100)+'%',background:c}}/>)}
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                {seg.map(([l,v,c],i)=>(
+                  <div key={i}>
+                    <p className="text-xl font-bold" style={{color:c}}>{v}</p>
+                    <p className="text-xs text-gray-500">{l}</p>
+                  </div>
+                ))}
+              </div>
+            </div>);
+          })()}
+        </div>
+
+        {/* Aproveitamento + Mata-mata */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
+            <p className="text-3xl font-bold text-teal-600">{d.aproveitamento}%</p>
+            <p className="text-xs text-gray-500 mt-1">Aproveitamento</p>
+            <p className="text-xs text-gray-400">pontuou em {d.scoredGames} de {d.betOnEndedGames} jogos apostados</p>
+          </div>
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
+            <p className="text-3xl font-bold text-purple-600">{d.koAdvance}/{d.koEndedCount}</p>
+            <p className="text-xs text-gray-500 mt-1">Quem avança certo</p>
+            <p className="text-xs text-gray-400">no Mata-Mata · {d.koExact} placar(es) exato(s)</p>
           </div>
         </div>
 
@@ -691,6 +779,41 @@
             <div className="flex justify-between text-sm"><span className="text-gray-600">🌟 Acertaram o melhor jogador</span><span className="font-bold text-emerald-600">{d.bestPlayerHits} de {d.totalParticipants}</span></div>
           </div>
           {d.myPredHits.length>0&&<p className="text-xs text-emerald-600 font-semibold mt-3">✅ Você acertou: {d.myPredHits.map(p=>p.label).join(', ')}</p>}
+        </div>
+
+        {/* Hall da Fama */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-50"><p className="font-semibold text-gray-700 text-sm">🌟 Hall da Fama do Bolão</p></div>
+          <div className="divide-y divide-gray-50">
+            {[
+              ["🎯","Rei dos cravadas",d.reiCravadas,`${d.reiCravadas?.totalExact||0} placares exatos`],
+              ["⚽","Craque da Fase de Grupos",d.topGF,`${d.topGF?.ptsGF||0} pts na fase`],
+              ["🏆","Craque do Mata-Mata",d.topMM,`${d.topMM?.ptsMM||0} pts na fase`],
+              ["🔮","Visionário do Mata-Mata",d.visionarioMM,`acertou quem avança ${d.visionarioMM?.koAdvance||0}x`],
+              ["🔥","Rei da sequência",d.reiSequencia,`${d.reiSequencia?.maxStreak||0} jogos pontuando seguidos`],
+            ].map(([ic,titulo,u,desc],i)=>u&&(
+              <div key={i} className={"flex items-center gap-3 px-4 py-2.5 "+(u.uid===profile.uid?"bg-emerald-50":"")}>
+                <span className="text-xl shrink-0">{ic}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-gray-400">{titulo}</p>
+                  <p className="text-sm font-semibold text-gray-800 truncate">{u.displayName}{u.uid===profile.uid&&<span className="text-xs text-emerald-500 ml-1">(você)</span>}</p>
+                </div>
+                <span className="text-xs font-bold text-gray-500 text-right shrink-0">{desc}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Curiosidades do Mata-Mata + campeão mais apostado */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <p className="text-xs text-gray-400 font-medium mb-1">😱 Zebra do Mata-Mata</p>
+            {d.hardestKO?(<><p className="text-sm font-bold text-gray-800">{tname(d.hardestKO.team1)} × {tname(d.hardestKO.team2)}</p><p className="text-xs text-gray-500">{tname(d.hardestKO[d.hardestKO.winner]||'')} avançou · só {d.hardestKOCount} viram</p></>):<p className="text-xs text-gray-400">—</p>}
+          </div>
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <p className="text-xs text-gray-400 font-medium mb-1">👑 Campeão mais apostado</p>
+            {d.mostPickedChampion?(<><p className="text-sm font-bold text-gray-800 flex items-center gap-1.5"><Flag name={d.mostPickedChampion[0]} size="sm"/>{d.mostPickedChampion[0]}</p><p className="text-xs text-gray-500">{d.mostPickedChampion[1]} pessoas apostaram</p></>):<p className="text-xs text-gray-400">—</p>}
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -760,6 +883,34 @@
           <p className="text-orange-100 text-sm font-semibold mb-2">SUA MAIOR SEQUÊNCIA</p>
           <p className="text-white text-7xl font-bold mb-2">🔥 {d.myGFStats.maxStreak}</p>
           <p className="text-orange-100 text-xl">jogos pontuando seguidos</p>
+        </>
+      )},
+      {bg:'linear-gradient(135deg,#134e4a,#0f766e)',content:(
+        <>
+          <p className="text-teal-100 text-sm font-semibold mb-2">SEU APROVEITAMENTO</p>
+          <p className="text-white text-7xl font-bold mb-2">{d.aproveitamento}%</p>
+          <p className="text-teal-100 text-xl">pontuou em {d.scoredGames} de {d.betOnEndedGames} jogos apostados</p>
+        </>
+      )},
+      ...(d.koEndedCount>0?[{bg:'linear-gradient(135deg,#4c1d95,#6d28d9)',content:(
+        <>
+          <p className="text-purple-100 text-sm font-semibold mb-2">NO MATA-MATA VOCÊ ACERTOU</p>
+          <p className="text-white text-7xl font-bold mb-2">🔮 {d.koAdvance}</p>
+          <p className="text-purple-100 text-xl">vezes quem avança de fase</p>
+          {d.koExact>0&&<p className="text-purple-200 text-sm mt-3">e cravou {d.koExact} placar(es) exato(s)!</p>}
+        </>
+      )}]:[]),
+      {bg:'linear-gradient(135deg,#1e293b,#334155)',content:(
+        <>
+          <p className="text-slate-200 text-sm font-semibold mb-5">🌟 HALL DA FAMA DO BOLÃO</p>
+          <div className="space-y-2.5 text-left">
+            {[["🎯","Rei dos cravadas",d.reiCravadas?.displayName],["⚽","Craque da F. de Grupos",d.topGF?.displayName],["🏆","Craque do Mata-Mata",d.topMM?.displayName],["🔥","Rei da sequência",d.reiSequencia?.displayName]].map(([ic,t,n],i)=>n&&(
+              <div key={i} className="flex items-center gap-3 bg-white/10 rounded-xl px-4 py-2.5">
+                <span className="text-2xl">{ic}</span>
+                <div><p className="text-slate-300 text-xs">{t}</p><p className="text-white font-bold">{n}</p></div>
+              </div>
+            ))}
+          </div>
         </>
       )},
       {bg:'linear-gradient(135deg,#581c87,#7e22ce)',content:(
