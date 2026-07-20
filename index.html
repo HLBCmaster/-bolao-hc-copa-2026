@@ -629,13 +629,14 @@
         if(m.winner&&kb.pick===m.winner)uKoAdvance++;
       });
       const ph=ptsPerPhase(u);
-      return{uid:u.uid,displayName:u.displayName,totalExact:s.exact+uKoExact,koAdvance:uKoAdvance,maxStreak:s.maxStreak,ptsGF:ph.gf,ptsMM:ph.mm};
+      return{uid:u.uid,displayName:u.displayName,totalExact:s.exact+uKoExact,koAdvance:uKoAdvance,maxStreak:s.maxStreak,ptsGF:ph.gf,ptsMM:ph.mm,ptsPred:ph.pred};
     });
     const reiCravadas=[...collectiveStats].sort((a,b)=>b.totalExact-a.totalExact)[0];
     const topGF=[...collectiveStats].sort((a,b)=>b.ptsGF-a.ptsGF)[0];
     const topMM=[...collectiveStats].sort((a,b)=>b.ptsMM-a.ptsMM)[0];
     const reiSequencia=[...collectiveStats].sort((a,b)=>b.maxStreak-a.maxStreak)[0];
     const visionarioMM=[...collectiveStats].sort((a,b)=>b.koAdvance-a.koAdvance)[0];
+    const topPred=[...collectiveStats].sort((a,b)=>b.ptsPred-a.ptsPred)[0];
 
     // Jogo do MM mais difícil (menos gente acertou quem avança)
     let hardestKO=null,hardestKOCount=Infinity;
@@ -656,7 +657,7 @@
       uniqueExactGames,hardest,hardestCount,easiest,easiestCount,mostCommonScore,
       championHits,scorerHits,bestPlayerHits,myPredHits,totalParticipants,totalBetsAll,avgPts,
       myPhases,aproveitamento,scoredGames,betOnEndedGames,
-      reiCravadas,topGF,topMM,reiSequencia,visionarioMM,hardestKO,hardestKOCount,mostPickedChampion,
+      reiCravadas,topGF,topMM,reiSequencia,visionarioMM,topPred,hardestKO,hardestKOCount,mostPickedChampion,
       koEndedCount:koEnded.length,
     };
   }
@@ -790,6 +791,7 @@
               ["⚽","Craque da Fase de Grupos",d.topGF,`${d.topGF?.ptsGF||0} pts na fase`],
               ["🏆","Craque do Mata-Mata",d.topMM,`${d.topMM?.ptsMM||0} pts na fase`],
               ["🔮","Visionário do Mata-Mata",d.visionarioMM,`acertou quem avança ${d.visionarioMM?.koAdvance||0}x`],
+              ["🌟","Mestre das Previsões",d.topPred,`${d.topPred?.ptsPred||0} pts em previsões`],
               ["🔥","Rei da sequência",d.reiSequencia,`${d.reiSequencia?.maxStreak||0} jogos pontuando seguidos`],
             ].map(([ic,titulo,u,desc],i)=>u&&(
               <div key={i} className={"flex items-center gap-3 px-4 py-2.5 "+(u.uid===profile.uid?"bg-emerald-50":"")}>
@@ -904,7 +906,7 @@
         <>
           <p className="text-slate-200 text-sm font-semibold mb-5">🌟 HALL DA FAMA DO BOLÃO</p>
           <div className="space-y-2.5 text-left">
-            {[["🎯","Rei dos cravadas",d.reiCravadas?.displayName],["⚽","Craque da F. de Grupos",d.topGF?.displayName],["🏆","Craque do Mata-Mata",d.topMM?.displayName],["🔥","Rei da sequência",d.reiSequencia?.displayName]].map(([ic,t,n],i)=>n&&(
+            {[["🎯","Rei dos cravadas",d.reiCravadas?.displayName],["⚽","Craque da F. de Grupos",d.topGF?.displayName],["🏆","Craque do Mata-Mata",d.topMM?.displayName],["🌟","Mestre das Previsões",d.topPred?.displayName],["🔥","Rei da sequência",d.reiSequencia?.displayName]].map(([ic,t,n],i)=>n&&(
               <div key={i} className="flex items-center gap-3 bg-white/10 rounded-xl px-4 py-2.5">
                 <span className="text-2xl">{ic}</span>
                 <div><p className="text-slate-300 text-xs">{t}</p><p className="text-white font-bold">{n}</p></div>
